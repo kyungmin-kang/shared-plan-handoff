@@ -722,6 +722,40 @@ class BridgeServiceTests(unittest.TestCase):
         self.assertIn(env_task["key"], docs_task["parallel_with"])
         self.assertEqual(env_task["completion_state"], "Not started")
 
+    def test_parallel_with_references_do_not_create_false_dependency_cycles(self) -> None:
+        plan = Path(self.temp_dir.name) / "shipping-plan.md"
+        plan.write_text(
+            "# Shipping Plan: Contributor Share\n\n"
+            "## Goal\n"
+            "Ship a contributor-ready public repo.\n"
+        )
+        tasks = Path(self.temp_dir.name) / "shipping-tasks.md"
+        tasks.write_text(
+            "# Shipping Tasks: Contributor Share\n\n"
+            "## Goal\n"
+            "Ship the repo.\n\n"
+            "## Phase 4 — Release Confidence\n"
+            "Phase estimate: `1-2 focused days`\n\n"
+            "- `P4.1 Serial anchor` — Explanation: lock the shared release baseline; Goal: create the phase anchor; Tests: release baseline check; AI-assisted estimate: `0.5-1 day`; Parallelization: serial anchor for this phase.\n"
+            "- `P4.2 QA rehearsal` — Explanation: run the rehearsal path; Goal: validate the release flow; Tests: rehearsal walkthrough; AI-assisted estimate: `0.5-1 day`; Parallelization: parallel with `P4.3` after `P4.1`.\n"
+            "- `P4.3 Docs polish` — Explanation: finalize the public docs; Goal: make the release legible; Tests: docs walkthrough; AI-assisted estimate: `0.25-0.5 day`; Parallelization: parallel with `P4.2` after `P4.1`.\n"
+        )
+
+        self.coordinator.register_approved_plan("Planner App", str(plan), task_plan_path=str(tasks))
+        result = self.coordinator.decompose_approved_plan("planner-app")
+        review = self.coordinator.review_decomposition("planner-app")
+        payload = json.loads(Path(result["task_graph_path"]).read_text())
+        tasks_by_title = {task["title"]: task for task in payload["tasks"]}
+
+        qa_task = tasks_by_title["P4.2 QA rehearsal"]
+        docs_task = tasks_by_title["P4.3 Docs polish"]
+
+        self.assertEqual(review["review_status"], "pass")
+        self.assertEqual(qa_task["dependencies"], ["p4-1-serial-anchor"])
+        self.assertEqual(docs_task["dependencies"], ["p4-1-serial-anchor"])
+        self.assertIn(docs_task["key"], qa_task["parallel_with"])
+        self.assertIn(qa_task["key"], docs_task["parallel_with"])
+
     def test_registering_new_approved_plan_creates_new_revision_and_updates_current_alias(self) -> None:
         first = Path(self.temp_dir.name) / "first.md"
         second = Path(self.temp_dir.name) / "second.md"
@@ -1014,6 +1048,30 @@ class BridgeServiceTests(unittest.TestCase):
         self.assertIn("How Pages Fit Together", markdown)
         self.assertIn("Inline View Setup", markdown)
         self.assertNotIn("Team Project", markdown)
+
+    def test_new_project_is_indexed_under_projects_not_shared_templates(self) -> None:
+        root = self.client.create_page(
+            parent_page_id="workspace-root-parent",
+            title="Reasoned NYC",
+            markdown=(
+                "# Reasoned NYC\n\n"
+                "## Projects\n"
+                "- [Data Workbench](https://www.notion.so/page-existing)\n\n"
+                "## Shared Templates\n"
+                "- [Team Projects](https://www.notion.so/page-template)\n"
+                "- [Agent PM](https://www.notion.so/page-stale)\n"
+            ),
+        )
+        self.service.config.parent_page_id = root["id"]
+
+        self.service.sync_plan(self.spec)
+
+        root_markdown = self.client.retrieve_page_markdown(root["id"])["markdown"]
+        projects_section = root_markdown.split("## Projects", 1)[1].split("## Shared Templates", 1)[0]
+        shared_templates_section = root_markdown.split("## Shared Templates", 1)[1]
+
+        self.assertIn("[Agent PM](", projects_section)
+        self.assertNotIn("[Agent PM](", shared_templates_section)
 
     def test_milestones_sync_into_phase_database_not_task_database(self) -> None:
         phase_spec = PlanSpec(

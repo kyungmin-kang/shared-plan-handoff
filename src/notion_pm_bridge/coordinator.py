@@ -624,6 +624,53 @@ class CodexNotionWorkflowCoordinator:
             "non_blocking": fields.get("non-blocking", ""),
         }
 
+    def _shipping_parallelization_links(self, parallelization_text: str) -> tuple[list[str], list[str]]:
+        normalized = re.sub(r"\s+", " ", parallelization_text.strip())
+        if not normalized:
+            return [], []
+
+        def extract_codes(segment: str) -> list[str]:
+            seen: set[str] = set()
+            ordered: list[str] = []
+            for code in re.findall(r"`([^`]+)`", segment):
+                if code not in seen:
+                    ordered.append(code)
+                    seen.add(code)
+            return ordered
+
+        parallel_codes: list[str] = []
+        dependency_codes: list[str] = []
+        parallel_patterns = [
+            r"(?:parallel with|in parallel with|alongside|same wave as)\s+(.+?)(?=(?:\s+(?:after|once|while|but|then|so that)|[.;]|$))",
+        ]
+        dependency_patterns = [
+            r"(?:starts after|run after|after|once|depends on|blocked by|serial with)\s+(.+?)(?=(?:\s+(?:while|but|then|so that)|[.;]|$))",
+        ]
+
+        for pattern in parallel_patterns:
+            for match in re.finditer(pattern, normalized, flags=re.IGNORECASE):
+                parallel_codes.extend(extract_codes(match.group(1)))
+        for pattern in dependency_patterns:
+            for match in re.finditer(pattern, normalized, flags=re.IGNORECASE):
+                dependency_codes.extend(extract_codes(match.group(1)))
+
+        deduped_dependencies: list[str] = []
+        seen_dependencies: set[str] = set()
+        for code in dependency_codes:
+            if code not in seen_dependencies:
+                deduped_dependencies.append(code)
+                seen_dependencies.add(code)
+
+        deduped_parallel: list[str] = []
+        seen_parallel: set[str] = set()
+        for code in parallel_codes:
+            if code in seen_dependencies or code in seen_parallel:
+                continue
+            deduped_parallel.append(code)
+            seen_parallel.add(code)
+
+        return deduped_dependencies, deduped_parallel
+
     def _shipping_task_description(
         self,
         *,
@@ -828,17 +875,13 @@ class CodexNotionWorkflowCoordinator:
             previous_key = previous_by_parent.get(parent_key)
             meta = task_meta_by_key.get(task.key, {})
             parallelization = meta.get("parallelization", "").lower()
-            explicit_codes = re.findall(r"`([^`]+)`", meta.get("parallelization", ""))
+            dependency_codes, _parallel_codes = self._shipping_parallelization_links(meta.get("parallelization", ""))
             explicit_dependencies = [
                 code_to_key[code]
-                for code in explicit_codes
+                for code in dependency_codes
                 if code in code_to_key and code_to_key[code] != task.key
             ]
-            if any(token in parallelization for token in ("after", "once", "starts after", "run after")):
-                for dependency_key in explicit_dependencies:
-                    if dependency_key not in task.dependencies:
-                        task.dependencies.append(dependency_key)
-            elif "serial with" in parallelization and explicit_dependencies:
+            if explicit_dependencies:
                 for dependency_key in explicit_dependencies:
                     if dependency_key not in task.dependencies:
                         task.dependencies.append(dependency_key)

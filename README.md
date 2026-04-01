@@ -232,6 +232,15 @@ The `pm` CLI remains a fallback/admin interface:
 
 Use it when you want a direct debug surface, not as the primary everyday workflow.
 
+Run the repo-first handoff steps serially, not in parallel:
+
+1. `register-plan`
+2. `decompose`
+3. `review-decomposition`
+4. `build-from-handoff` or `reconcile-from-handoff`
+
+Each step updates the current approved revision alias and its revision-scoped artifacts. If you fire them in parallel, a later step can legitimately read the previous revision.
+
 ## Notion Transport Policy
 
 - Default: `NOTION_TRANSPORT=mcp`
@@ -239,6 +248,7 @@ Use it when you want a direct debug surface, not as the primary everyday workflo
 - Recommended interactive path: use Codex chat plus the connected Notion app/plugin
 - Recommended non-interactive path: use the CLI with the REST token
 - The CLI auto-loads `.env` (or `PM_BRIDGE_ENV_FILE`) without requiring shell sourcing
+- Do not `source .env` unless you have already shell-escaped the values yourself; dotenv-safe secrets may still contain shell-special characters
 
 This means:
 

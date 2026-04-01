@@ -43,6 +43,12 @@ Use this skill when the task should move an approved repo plan into the Notion e
 11. If Notion rejects inline linked-database blocks, keep the project home page polished anyway with direct database links, operating guidance, and a workspace-root note that explains the human workaround.
 12. During execution, claim, start, block, and finish tasks in Notion without asking the user to touch the shell.
 
+Critical sequencing rule:
+
+- Never run `register-plan`, `decompose`, `review-decomposition`, and `build/reconcile` in parallel.
+- These steps are revision-sensitive and must run serially against the same approved revision.
+- The CLI already auto-loads `.env`, so do not ask the user to `source .env` unless they explicitly want shell variables exported for some other reason.
+
 ## Prompts To Recognize
 
 - `Rescue this messy project`

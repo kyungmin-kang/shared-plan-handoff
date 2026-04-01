@@ -189,6 +189,8 @@ class BridgeService:
             return None
         try:
             return self.client.retrieve_page(page_id)
+        except KeyError:
+            return None
         except APIError as exc:
             if exc.status == 404:
                 return None
@@ -199,6 +201,8 @@ class BridgeService:
             return None
         try:
             return self.client.retrieve_database(database_id)
+        except KeyError:
+            return None
         except APIError as exc:
             if exc.status == 404:
                 return None
@@ -209,6 +213,8 @@ class BridgeService:
             return None
         try:
             return self.client.retrieve_data_source(data_source_id)
+        except KeyError:
+            return None
         except APIError as exc:
             if exc.status == 404:
                 return None
@@ -748,6 +754,92 @@ class BridgeService:
             lines.extend(["", body])
         lines.extend(["", MANAGED_END])
         return "\n".join(lines).strip()
+
+    def _split_h2_sections(self, markdown: str) -> tuple[str, list[tuple[str, str]]]:
+        preamble_lines: list[str] = []
+        sections: list[tuple[str, str]] = []
+        current_title: str | None = None
+        current_lines: list[str] = []
+        for raw_line in markdown.splitlines():
+            match = re.match(r"^##\s+(.+?)\s*$", raw_line.strip())
+            if match:
+                if current_title is None:
+                    preamble_lines = current_lines
+                else:
+                    sections.append((current_title, "\n".join(current_lines).strip()))
+                current_title = match.group(1).strip()
+                current_lines = []
+                continue
+            current_lines.append(raw_line)
+        if current_title is None:
+            preamble_lines = current_lines
+        else:
+            sections.append((current_title, "\n".join(current_lines).strip()))
+        return "\n".join(preamble_lines).strip(), sections
+
+    def _render_h2_sections(self, preamble: str, sections: list[tuple[str, str]]) -> str:
+        blocks: list[str] = []
+        if preamble.strip():
+            blocks.append(preamble.strip())
+        for title, body in sections:
+            block = f"## {title.strip()}"
+            if body.strip():
+                block += f"\n{body.strip()}"
+            blocks.append(block)
+        return "\n\n".join(blocks).strip()
+
+    def _project_index_line(self, project: ProjectSpec, state: BridgeState) -> str:
+        project_url = state.project_page_url or f"https://www.notion.so/{state.project_page_id}"
+        return f"- [{project.name}]({project_url})"
+
+    def _line_matches_project_link(self, line: str, project: ProjectSpec, state: BridgeState) -> bool:
+        stripped = line.strip()
+        if not stripped:
+            return False
+        escaped_name = re.escape(project.name)
+        if re.search(rf"\[{escaped_name}\]\(", stripped):
+            return True
+        if state.project_page_url and state.project_page_url in stripped:
+            return True
+        if state.project_page_id and state.project_page_id in stripped:
+            return True
+        return False
+
+    def _ensure_parent_projects_index(self, project: ProjectSpec, state: BridgeState) -> None:
+        parent_page_id = self._require_parent_page_id()
+        parent_page = self._safe_retrieve_page(parent_page_id)
+        if not parent_page:
+            return
+        current = self.client.retrieve_page_markdown(parent_page_id).get("markdown", "")
+        link_line = self._project_index_line(project, state)
+        preamble, sections = self._split_h2_sections(current)
+        cleaned_sections: list[tuple[str, str]] = []
+        projects_index: int | None = None
+
+        for index, (title, body) in enumerate(sections):
+            filtered_lines = [
+                line
+                for line in body.splitlines()
+                if not self._line_matches_project_link(line, project, state)
+            ]
+            cleaned_sections.append((title, "\n".join(filtered_lines).strip()))
+            if title.strip().lower() == "projects":
+                projects_index = index
+
+        if projects_index is None:
+            cleaned_sections.append(("Projects", link_line))
+        else:
+            title, body = cleaned_sections[projects_index]
+            body_lines = [line for line in body.splitlines() if line.strip()]
+            if link_line not in body_lines:
+                body_lines.append(link_line)
+            cleaned_sections[projects_index] = (title, "\n".join(body_lines).strip())
+
+        rendered = self._render_h2_sections(preamble, cleaned_sections)
+        if rendered.strip() == current.strip():
+            return
+        self.client.update_page(parent_page_id, erase_content=True)
+        self.client.update_page_markdown(parent_page_id, operation="insert_content", content=rendered)
 
     def _load_markdown_file(self, path_value: str | None) -> str:
         if not path_value:
@@ -1468,6 +1560,7 @@ class BridgeService:
         if existing:
             state.project_page_id = str(existing["id"])
             state.project_page_url = str(existing.get("url", ""))
+            self._ensure_parent_projects_index(project, state)
             return existing
 
         created = self.client.create_page(
@@ -1478,6 +1571,7 @@ class BridgeService:
         )
         state.project_page_id = str(created["id"])
         state.project_page_url = str(created.get("url", ""))
+        self._ensure_parent_projects_index(project, state)
         return created
 
     def _ensure_tasks_database(

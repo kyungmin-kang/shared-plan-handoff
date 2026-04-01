@@ -47,6 +47,13 @@ workspace current during delivery.
 8. During execution, claim, start, block, and finish tasks in Notion without
    asking the user to touch the shell.
 
+Critical sequencing rule:
+
+- Run `register-plan -> decompose -> review-decomposition -> build/reconcile`
+  serially, never in parallel.
+- The CLI auto-loads `.env`, so do not tell the user to `source .env` unless
+  they explicitly need exported shell variables for a separate step.
+
 ## References
 
 - `../../../../src/notion_pm_bridge/coordinator.py`
