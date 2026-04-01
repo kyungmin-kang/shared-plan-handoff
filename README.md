@@ -167,6 +167,14 @@ Installation and usage notes live in:
 The plugin is meant to reinforce the same repo-first workflow as the local
 skills, not replace it with a second planning model.
 
+## Release Confidence Docs
+
+Phase 5 artifacts for this release live in:
+
+- [`docs/release_readiness.md`](/Users/kmkang/Documents/ProjectManagerVisualization/docs/release_readiness.md)
+- [`docs/dogfood_retrospective.md`](/Users/kmkang/Documents/ProjectManagerVisualization/docs/dogfood_retrospective.md)
+- [`docs/qa_report.md`](/Users/kmkang/Documents/ProjectManagerVisualization/docs/qa_report.md)
+
 ## Coordinator API
 
 The main orchestration surface is [`CodexNotionWorkflowCoordinator`](/Users/kmkang/Documents/ProjectManagerVisualization/src/notion_pm_bridge/coordinator.py).

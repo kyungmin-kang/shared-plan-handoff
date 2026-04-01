@@ -1139,6 +1139,89 @@ class PluginScaffoldTests(unittest.TestCase):
         self.assertTrue((plugin_root / "assets" / "project-manager-visualization.svg").exists())
         self.assertTrue((self.repo_root / "docs" / "local_codex_plugin.md").exists())
 
+    def test_release_confidence_docs_exist(self) -> None:
+        self.assertTrue((self.repo_root / "docs" / "release_readiness.md").exists())
+        self.assertTrue((self.repo_root / "docs" / "dogfood_retrospective.md").exists())
+        self.assertTrue((self.repo_root / "docs" / "qa_report.md").exists())
+
+
+class DynamicPhaseGroupSchemaTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temp_dir = tempfile.TemporaryDirectory()
+        state_path = Path(self.temp_dir.name) / "state.json"
+        config = BridgeConfig(
+            api_base_url="https://api.notion.test",
+            api_token="token",
+            parent_page_id="workspace-root",
+            project_identifier="agent-pm",
+            state_path=state_path,
+            artifacts_dir=state_path.parent / "artifacts",
+            plans_dir=state_path.parent / "plans",
+            status_map={
+                "ready": "Ready",
+                "in_progress": "In Progress",
+                "blocked": "Blocked",
+                "review": "Review",
+                "done": "Done",
+            },
+        )
+        self.client = FakeNotionClient()
+        self.service = BridgeService(self.client, config)
+
+    def tearDown(self) -> None:
+        self.temp_dir.cleanup()
+
+    def test_task_schema_uses_current_plan_phase_labels(self) -> None:
+        spec = PlanSpec(
+            project=ProjectSpec(identifier="shipping-demo", name="Shipping Demo", description="Demo"),
+            docs=[],
+            tasks=[
+                TaskSpec(
+                    key="phase-alpha",
+                    title="Phase Alpha — Foundation",
+                    type="Milestone",
+                    sequence=1,
+                    plan_revision="r001",
+                ),
+                TaskSpec(
+                    key="task-alpha",
+                    title="Do foundation work",
+                    parent_key="phase-alpha",
+                    type="Task",
+                    sequence=2,
+                    status="Ready",
+                    plan_revision="r001",
+                ),
+                TaskSpec(
+                    key="phase-beta",
+                    title="Phase Beta — Release",
+                    type="Milestone",
+                    sequence=3,
+                    plan_revision="r001",
+                ),
+                TaskSpec(
+                    key="task-beta",
+                    title="Do release work",
+                    parent_key="phase-beta",
+                    type="Task",
+                    sequence=4,
+                    status="Ready",
+                    plan_revision="r001",
+                ),
+            ],
+        )
+
+        self.service.sync_plan(spec)
+
+        data_source = self.client.retrieve_data_source(self.service._load_state().tasks_data_source_id)
+        options = data_source["properties"]["Phase Group"]["select"]["options"]
+        option_names = [option["name"] for option in options]
+
+        self.assertEqual(
+            option_names[:3],
+            ["Phase Alpha — Foundation", "Phase Beta — Release", "No Phase"],
+        )
+
 
 class NotionClientTests(unittest.TestCase):
     def test_update_page_markdown_uses_current_discriminated_payload(self) -> None:

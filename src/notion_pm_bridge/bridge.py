@@ -339,17 +339,35 @@ class BridgeService:
     def _phases_database_title(self, project: ProjectSpec) -> str:
         return "Phases"
 
-    def _phase_group_options(self) -> list[dict[str, str]]:
-        return [
-            {"name": "Phase 1 — Dogfood Baseline", "color": "blue"},
-            {"name": "Phase 2 — Public Repo and Docs Baseline", "color": "green"},
-            {"name": "Phase 3 — Maintainability Hardening", "color": "orange"},
-            {"name": "Phase 4 — Release Confidence", "color": "purple"},
-            {"name": "Phase 5 — Publish Prep", "color": "red"},
-            {"name": "No Phase", "color": "gray"},
-        ]
+    def _phase_group_options(self, tasks: list[TaskSpec] | None = None) -> list[dict[str, str]]:
+        palette = ["blue", "green", "orange", "purple", "red", "pink", "brown", "yellow", "default"]
+        labels: list[str] = []
+        seen: set[str] = set()
+        ordered_tasks = sorted(
+            tasks or [],
+            key=lambda item: (
+                item.sequence if item.sequence is not None else 10**9,
+                item.title.lower(),
+            ),
+        )
+        for task in ordered_tasks:
+            label = ""
+            if (task.type or "").lower() == "milestone":
+                label = self._phase_group_label(task)
+            elif task.phase_group:
+                label = task.phase_group
+            label = label.strip()
+            if not label or label == "No Phase" or label in seen:
+                continue
+            labels.append(label)
+            seen.add(label)
+        if not labels:
+            labels = ["Phase 1", "Phase 2", "Phase 3", "Phase 4", "Phase 5"]
+        options = [{"name": label, "color": palette[index % len(palette)]} for index, label in enumerate(labels)]
+        options.append({"name": "No Phase", "color": "gray"})
+        return options
 
-    def _task_schema(self) -> dict[str, Any]:
+    def _task_schema(self, tasks: list[TaskSpec] | None = None) -> dict[str, Any]:
         statuses = [
             {"name": self._status_title("ready"), "color": "blue"},
             {"name": self._status_title("in_progress"), "color": "yellow"},
@@ -372,7 +390,7 @@ class BridgeService:
                 }
             },
             "Execution Slot": {"rich_text": {}},
-            "Phase Group": {"select": {"options": self._phase_group_options()}},
+            "Phase Group": {"select": {"options": self._phase_group_options(tasks)}},
             "Type": {
                 "select": {
                     "options": [
@@ -530,37 +548,86 @@ class BridgeService:
             "Last Synced At": {"rich_text": {}},
         }
 
-    def _ensure_task_schema(self, state: BridgeState) -> None:
+    def _merge_select_property_schema(self, current: dict[str, Any], desired: dict[str, Any]) -> tuple[dict[str, Any] | None, bool]:
+        current_options = current.get("select", {}).get("options", [])
+        desired_options = desired.get("select", {}).get("options", [])
+        if not current_options or not desired_options:
+            return None, False
+
+        current_by_name = {
+            str(option.get("name")): option
+            for option in current_options
+            if isinstance(option, dict) and option.get("name")
+        }
+        desired_names: list[str] = []
+        merged: list[dict[str, Any]] = []
+        changed = False
+
+        for option in desired_options:
+            name = str(option.get("name", "")).strip()
+            if not name:
+                continue
+            desired_names.append(name)
+            existing = current_by_name.pop(name, None)
+            if existing:
+                merged.append(existing)
+            else:
+                merged.append(option)
+                changed = True
+
+        extras = [option for name, option in current_by_name.items() if name not in desired_names]
+        if extras:
+            merged.extend(extras)
+
+        current_names = [
+            str(option.get("name"))
+            for option in current_options
+            if isinstance(option, dict) and option.get("name")
+        ]
+        if current_names != [option["name"] for option in merged]:
+            changed = True
+        if not changed:
+            return None, False
+        return {"select": {"options": merged}}, True
+
+    def _schema_updates(self, current_properties: dict[str, Any], desired_properties: dict[str, Any]) -> dict[str, Any]:
+        updates: dict[str, Any] = {}
+        for name, schema in desired_properties.items():
+            current = current_properties.get(name)
+            if not current:
+                updates[name] = schema
+                continue
+            if "select" in schema and current.get("type") == "select":
+                merged, changed = self._merge_select_property_schema(current, schema)
+                if changed and merged:
+                    updates[name] = merged
+        return updates
+
+    def _ensure_task_schema(self, state: BridgeState, tasks: list[TaskSpec] | None = None) -> None:
         data_source = self.client.retrieve_data_source(state.tasks_data_source_id)
         current_properties = data_source.get("properties", {})
-        missing: dict[str, Any] = {}
-        for name, schema in self._task_schema().items():
-            if name not in current_properties:
-                missing[name] = schema
+        updates = self._schema_updates(current_properties, self._task_schema(tasks))
         if "Parent" not in current_properties:
-            missing["Parent"] = {"relation": {"data_source_id": state.tasks_data_source_id, "single_property": {}}}
+            updates["Parent"] = {"relation": {"data_source_id": state.tasks_data_source_id, "single_property": {}}}
         if "Blocked By" not in current_properties:
-            missing["Blocked By"] = {"relation": {"data_source_id": state.tasks_data_source_id, "single_property": {}}}
+            updates["Blocked By"] = {"relation": {"data_source_id": state.tasks_data_source_id, "single_property": {}}}
         if "Parallel With" not in current_properties:
-            missing["Parallel With"] = {"relation": {"data_source_id": state.tasks_data_source_id, "single_property": {}}}
+            updates["Parallel With"] = {"relation": {"data_source_id": state.tasks_data_source_id, "single_property": {}}}
         if state.phases_data_source_id and "Phase" not in current_properties:
-            missing["Phase"] = {"relation": {"data_source_id": state.phases_data_source_id, "single_property": {}}}
-        if missing:
-            self.client.update_data_source(state.tasks_data_source_id, properties=missing)
+            updates["Phase"] = {"relation": {"data_source_id": state.phases_data_source_id, "single_property": {}}}
+        if updates:
+            self.client.update_data_source(state.tasks_data_source_id, properties=updates)
 
     def _ensure_phase_schema(self, state: BridgeState) -> None:
         data_source = self.client.retrieve_data_source(state.phases_data_source_id)
         current_properties = data_source.get("properties", {})
-        missing: dict[str, Any] = {}
-        for name, schema in self._phase_schema().items():
-            if name not in current_properties:
-                missing[name] = schema
+        updates = self._schema_updates(current_properties, self._phase_schema())
         if "Tasks" not in current_properties and state.tasks_data_source_id:
-            missing["Tasks"] = {"relation": {"data_source_id": state.tasks_data_source_id, "single_property": {}}}
+            updates["Tasks"] = {"relation": {"data_source_id": state.tasks_data_source_id, "single_property": {}}}
         if "Blocked By" not in current_properties:
-            missing["Blocked By"] = {"relation": {"data_source_id": state.phases_data_source_id, "single_property": {}}}
-        if missing:
-            self.client.update_data_source(state.phases_data_source_id, properties=missing)
+            updates["Blocked By"] = {"relation": {"data_source_id": state.phases_data_source_id, "single_property": {}}}
+        if updates:
+            self.client.update_data_source(state.phases_data_source_id, properties=updates)
 
     def _ensure_phases_database(self, project: ProjectSpec, state: BridgeState) -> dict[str, Any]:
         database = self._safe_retrieve_database(state.phases_database_id)
@@ -937,7 +1004,9 @@ class BridgeService:
         if task.phase_group:
             return task.phase_group
         title = task.title.strip()
-        match = re.match(r"^(Phase\s+\d+\s+—.+)$", title)
+        if (task.type or "").lower() == "milestone" and title:
+            return title
+        match = re.match(r"^(Phase\s+.+)$", title)
         if match:
             return match.group(1)
         return "No Phase"
@@ -1411,7 +1480,13 @@ class BridgeService:
         state.project_page_url = str(created.get("url", ""))
         return created
 
-    def _ensure_tasks_database(self, project: ProjectSpec, state: BridgeState) -> dict[str, Any]:
+    def _ensure_tasks_database(
+        self,
+        project: ProjectSpec,
+        state: BridgeState,
+        *,
+        tasks: list[TaskSpec] | None = None,
+    ) -> dict[str, Any]:
         database = self._safe_retrieve_database(state.tasks_database_id)
         if database:
             if self._database_parent_page_id(database) != state.project_page_id or extract_title(database) != self._task_database_title(project):
@@ -1430,7 +1505,7 @@ class BridgeService:
                 parent_page_id=state.project_page_id,
                 title=self._task_database_title(project),
                 data_source_title=self._task_database_title(project),
-                properties=self._task_schema(),
+                properties=self._task_schema(tasks),
                 is_inline=False,
             )
             database = created
@@ -1439,7 +1514,7 @@ class BridgeService:
         elif not state.tasks_data_source_id:
             state.tasks_data_source_id = self._first_data_source_id(database)
 
-        self._ensure_task_schema(state)
+        self._ensure_task_schema(state, tasks)
         return database
 
     def _ensure_doc_pages(self, spec: PlanSpec, state: BridgeState, *, merge_defaults: bool = True) -> dict[str, list[str]]:
@@ -1600,9 +1675,9 @@ class BridgeService:
 
     def _ensure_workspace(self, spec: PlanSpec, state: BridgeState, *, merge_defaults: bool = True) -> None:
         self._ensure_project_page(spec.project, state)
-        self._ensure_tasks_database(spec.project, state)
+        self._ensure_tasks_database(spec.project, state, tasks=spec.tasks)
         self._ensure_phases_database(spec.project, state)
-        self._ensure_task_schema(state)
+        self._ensure_task_schema(state, spec.tasks)
         self._ensure_docs_database(spec.project, state)
         self._ensure_doc_pages(spec, state, merge_defaults=merge_defaults)
         self._replace_managed_markdown(
