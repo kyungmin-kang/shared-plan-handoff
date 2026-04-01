@@ -8,10 +8,31 @@ choose_python() {
   local candidates=()
 
   if [[ -n "${SHARED_PLAN_HANDOFF_PYTHON:-}" ]]; then
-    candidates+=("${SHARED_PLAN_HANDOFF_PYTHON}")
+    if ! command -v "${SHARED_PLAN_HANDOFF_PYTHON}" >/dev/null 2>&1; then
+      cat >&2 <<EOF
+Shared Plan Handoff could not find the requested Python interpreter:
+  ${SHARED_PLAN_HANDOFF_PYTHON}
+EOF
+      return 1
+    fi
+    if "${SHARED_PLAN_HANDOFF_PYTHON}" - <<'PY' >/dev/null 2>&1
+import sys
+raise SystemExit(0 if sys.version_info >= (3, 11) else 1)
+PY
+    then
+      printf '%s\n' "${SHARED_PLAN_HANDOFF_PYTHON}"
+      return 0
+    fi
+    cat >&2 <<EOF
+Shared Plan Handoff requires Python 3.11+.
+
+The requested interpreter is too old:
+  ${SHARED_PLAN_HANDOFF_PYTHON}
+EOF
+    return 1
   fi
 
-  candidates+=(python3.13 python3.12 python3.11 python3)
+  candidates+=(python3.11 python3.12 python3.13 python3)
 
   for candidate in "${candidates[@]}"; do
     if ! command -v "$candidate" >/dev/null 2>&1; then
@@ -38,8 +59,32 @@ EOF
 }
 
 PYTHON_BIN="$(choose_python)"
+PYTHON_VERSION="$("$PYTHON_BIN" - <<'PY'
+import sys
+print(f"{sys.version_info.major}.{sys.version_info.minor}")
+PY
+)"
 
-"$PYTHON_BIN" -m venv .venv
+if [[ "${SHARED_PLAN_HANDOFF_DRY_RUN:-0}" == "1" ]]; then
+  printf 'Selected Python interpreter: %s (%s)\n' "$PYTHON_BIN" "$PYTHON_VERSION"
+  exit 0
+fi
+
+"$PYTHON_BIN" -m venv --clear .venv
+
+if ! ./.venv/bin/python - <<'PY' >/dev/null 2>&1
+import sys
+raise SystemExit(0 if sys.version_info >= (3, 11) else 1)
+PY
+then
+  cat >&2 <<'EOF'
+Bootstrap created a virtual environment that is not running Python 3.11+.
+
+Delete .venv and rerun with an explicit interpreter, for example:
+  SHARED_PLAN_HANDOFF_PYTHON=/path/to/python3.12 ./scripts/bootstrap_venv.sh
+EOF
+  exit 1
+fi
 
 if ! ./.venv/bin/python -m pip install -e .; then
   echo "Editable install via pip failed; falling back to setup.py develop." >&2

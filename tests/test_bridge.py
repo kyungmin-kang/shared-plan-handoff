@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -32,6 +33,7 @@ class FakeNotionClient:
         self.databases: dict[str, dict] = {}
         self.data_sources: dict[str, dict] = {}
         self.data_source_pages: dict[str, list[str]] = {}
+        self.update_calls: list[dict] = []
 
     def _new_page_id(self) -> str:
         page_id = f"page-{self.next_page_id}"
@@ -103,6 +105,15 @@ class FakeNotionClient:
         icon_emoji: str | None = None,
     ) -> dict:
         page = self.pages[page_id]
+        self.update_calls.append(
+            {
+                "page_id": page_id,
+                "properties": self._clone(properties) if properties else None,
+                "archived": archived,
+                "erase_content": erase_content,
+                "icon_emoji": icon_emoji,
+            }
+        )
         if properties:
             for key, value in properties.items():
                 if key not in page["properties"]:
@@ -1100,11 +1111,34 @@ class BridgeServiceTests(unittest.TestCase):
         self.service.sync_plan(self.spec)
 
         root_markdown = self.client.retrieve_page_markdown(root["id"])["markdown"]
-        projects_section = root_markdown.split("## Projects", 1)[1].split("## Shared Templates", 1)[0]
         shared_templates_section = root_markdown.split("## Shared Templates", 1)[1]
 
-        self.assertIn("[Agent PM](", projects_section)
+        self.assertIn("[Agent PM](", root_markdown)
         self.assertNotIn("[Agent PM](", shared_templates_section)
+        self.assertFalse(any(call["erase_content"] for call in self.client.update_calls if call["page_id"] == root["id"]))
+
+    def test_parent_index_update_preserves_unmanaged_parent_page_content(self) -> None:
+        root = self.client.create_page(
+            parent_page_id="workspace-root-parent",
+            title="Reasoned NYC",
+            markdown=(
+                "# Reasoned NYC\n\n"
+                "Welcome to the workspace.\n\n"
+                "## Shared Templates\n"
+                "- [Team Projects](https://www.notion.so/page-template)\n\n"
+                "## Notes\n"
+                "- Keep this page human-curated.\n"
+            ),
+        )
+        self.service.config.parent_page_id = root["id"]
+
+        self.service.sync_plan(self.spec)
+
+        root_markdown = self.client.retrieve_page_markdown(root["id"])["markdown"]
+        self.assertIn("Welcome to the workspace.", root_markdown)
+        self.assertIn("## Shared Templates", root_markdown)
+        self.assertIn("## Notes", root_markdown)
+        self.assertIn("[Agent PM](", root_markdown)
 
     def test_milestones_sync_into_phase_database_not_task_database(self) -> None:
         phase_spec = PlanSpec(
@@ -1300,8 +1334,67 @@ class BootstrapRegressionTests(unittest.TestCase):
         script = (self.repo_root / "scripts" / "bootstrap_venv.sh").read_text(encoding="utf-8")
         self.assertIn("python3.11", script)
         self.assertIn("SHARED_PLAN_HANDOFF_PYTHON", script)
+        self.assertIn("SHARED_PLAN_HANDOFF_DRY_RUN", script)
         self.assertIn("pip install -e .", script)
         self.assertIn('[[ ! -x ./.venv/bin/pm ]]', script)
+
+    def _write_fake_python(self, directory: Path, name: str, version: str) -> Path:
+        path = directory / name
+        supported = "1" if tuple(int(part) for part in version.split(".")) >= (3, 11) else "0"
+        path.write_text(
+            "#!/usr/bin/env bash\n"
+            "code=\"$(cat)\"\n"
+            f"version='{version}'\n"
+            f"supported='{supported}'\n"
+            "if [[ \"$code\" == *\"sys.version_info >= (3, 11)\"* ]]; then\n"
+            "  if [[ \"$supported\" == \"1\" ]]; then\n"
+            "    exit 0\n"
+            "  fi\n"
+            "  exit 1\n"
+            "fi\n"
+            "if [[ \"$code\" == *\"print(f\\\"{sys.version_info.major}.{sys.version_info.minor}\\\")\"* ]]; then\n"
+            "  printf '%s\\n' \"$version\"\n"
+            "  exit 0\n"
+            "fi\n"
+            "exit 0\n",
+            encoding="utf-8",
+        )
+        path.chmod(0o755)
+        return path
+
+    def test_bootstrap_dry_run_prefers_python_311_over_older_python3(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            self._write_fake_python(temp_path, "python3.11", "3.11")
+            self._write_fake_python(temp_path, "python3", "3.8")
+            result = subprocess.run(
+                ["/bin/bash", str(self.repo_root / "scripts" / "bootstrap_venv.sh")],
+                cwd=self.repo_root,
+                env={**os.environ, "PATH": f"{temp_dir}:/usr/bin:/bin", "SHARED_PLAN_HANDOFF_DRY_RUN": "1"},
+                capture_output=True,
+                text=True,
+            )
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("python3.11", result.stdout)
+
+    def test_bootstrap_dry_run_rejects_when_no_supported_python_exists(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            chosen = self._write_fake_python(temp_path, "python3", "3.8")
+            result = subprocess.run(
+                ["/bin/bash", str(self.repo_root / "scripts" / "bootstrap_venv.sh")],
+                cwd=self.repo_root,
+                env={
+                    **os.environ,
+                    "PATH": f"{temp_dir}:/usr/bin:/bin",
+                    "SHARED_PLAN_HANDOFF_DRY_RUN": "1",
+                    "SHARED_PLAN_HANDOFF_PYTHON": str(chosen),
+                },
+                capture_output=True,
+                text=True,
+            )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("requires Python 3.11+", result.stderr)
 
 
 class DynamicPhaseGroupSchemaTests(unittest.TestCase):

@@ -248,6 +248,7 @@ Run the repo-first handoff steps serially, not in parallel:
 4. `build-from-handoff` or `reconcile-from-handoff`
 
 Each step updates the current approved revision alias and its revision-scoped artifacts. If you fire them in parallel, a later step can legitimately read the previous revision.
+During `decompose`, long phases also generate repo-backed phase docs under `plans/<project_slug>/phase-docs/`. Those phase docs are then synced into the Notion `Docs` library during `build-from-handoff` or `reconcile-from-handoff`.
 
 ## Notion Transport Policy
 

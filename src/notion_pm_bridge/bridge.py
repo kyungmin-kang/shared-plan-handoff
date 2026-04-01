@@ -14,6 +14,8 @@ MANAGED_START = "<!-- pm-bridge-managed:start -->"
 MANAGED_END = "<!-- pm-bridge-managed:end -->"
 ESCAPED_MANAGED_START = r"\<!-- pm-bridge-managed:start --\>"
 ESCAPED_MANAGED_END = r"\<!-- pm-bridge-managed:end --\>"
+PARENT_INDEX_START = "<!-- pm-bridge-parent-index:start -->"
+PARENT_INDEX_END = "<!-- pm-bridge-parent-index:end -->"
 
 
 def _title_property(value: str) -> dict[str, Any]:
@@ -818,6 +820,31 @@ class BridgeService:
             return True
         return False
 
+    def _render_parent_projects_section(self, project_lines: list[str]) -> str:
+        lines = [PARENT_INDEX_START, "## Projects"]
+        if project_lines:
+            lines.append("")
+            lines.extend(project_lines)
+        lines.extend(["", PARENT_INDEX_END])
+        return "\n".join(lines).strip()
+
+    def _extract_parent_index_lines(self, markdown: str) -> list[str]:
+        pattern = re.compile(
+            rf"{re.escape(PARENT_INDEX_START)}\s*(.*?)\s*{re.escape(PARENT_INDEX_END)}",
+            re.DOTALL,
+        )
+        match = pattern.search(markdown)
+        if not match:
+            return []
+        lines: list[str] = []
+        for line in match.group(1).splitlines():
+            stripped = line.strip()
+            if stripped.startswith("## "):
+                continue
+            if stripped.startswith("- ["):
+                lines.append(stripped)
+        return lines
+
     def _ensure_parent_projects_index(self, project: ProjectSpec, state: BridgeState) -> None:
         parent_page_id = self._require_parent_page_id()
         parent_page = self._safe_retrieve_page(parent_page_id)
@@ -825,34 +852,64 @@ class BridgeService:
             return
         current = self.client.retrieve_page_markdown(parent_page_id).get("markdown", "")
         link_line = self._project_index_line(project, state)
+        outside_lines: list[str] = []
+        in_managed = False
+        for raw_line in current.splitlines():
+            stripped = raw_line.strip()
+            if stripped == PARENT_INDEX_START:
+                in_managed = True
+                continue
+            if stripped == PARENT_INDEX_END:
+                in_managed = False
+                continue
+            if in_managed:
+                continue
+            if self._line_matches_project_link(raw_line, project, state):
+                outside_lines.append(raw_line)
+        for line in outside_lines:
+            self.client.update_page_markdown(
+                parent_page_id,
+                operation="replace_content_range",
+                content="",
+                content_range=f"{line}...{line}",
+            )
+        if outside_lines:
+            current = self.client.retrieve_page_markdown(parent_page_id).get("markdown", "")
+
         preamble, sections = self._split_h2_sections(current)
-        cleaned_sections: list[tuple[str, str]] = []
-        projects_index: int | None = None
-
-        for index, (title, body) in enumerate(sections):
-            filtered_lines = [
-                line
-                for line in body.splitlines()
-                if not self._line_matches_project_link(line, project, state)
-            ]
-            cleaned_sections.append((title, "\n".join(filtered_lines).strip()))
-            if title.strip().lower() == "projects":
-                projects_index = index
-
-        if projects_index is None:
-            cleaned_sections.append(("Projects", link_line))
-        else:
-            title, body = cleaned_sections[projects_index]
+        for title, body in sections:
+            if title.strip().lower() != "projects":
+                continue
             body_lines = [line for line in body.splitlines() if line.strip()]
-            if link_line not in body_lines:
-                body_lines.append(link_line)
-            cleaned_sections[projects_index] = (title, "\n".join(body_lines).strip())
-
-        rendered = self._render_h2_sections(preamble, cleaned_sections)
-        if rendered.strip() == current.strip():
+            body_lines = [line for line in body_lines if not self._line_matches_project_link(line, project, state)]
+            body_lines.append(link_line)
+            old_section = f"## {title.strip()}"
+            if body.strip():
+                old_section += f"\n{body.strip()}"
+            new_section = f"## {title.strip()}\n" + "\n".join(body_lines)
+            self.client.update_page_markdown(
+                parent_page_id,
+                operation="replace_content_range",
+                content=new_section,
+                content_range=f"{old_section}...{old_section}",
+            )
             return
-        self.client.update_page(parent_page_id, erase_content=True)
-        self.client.update_page_markdown(parent_page_id, operation="insert_content", content=rendered)
+
+        project_lines = [line for line in self._extract_parent_index_lines(current) if not self._line_matches_project_link(line, project, state)]
+        project_lines.append(link_line)
+        rendered = self._render_parent_projects_section(project_lines)
+
+        if PARENT_INDEX_START in current and PARENT_INDEX_END in current:
+            self.client.update_page_markdown(
+                parent_page_id,
+                operation="replace_content_range",
+                content=rendered,
+                content_range=f"{PARENT_INDEX_START}...{PARENT_INDEX_END}",
+            )
+            return
+
+        insertion = f"\n\n{rendered}" if current.strip() else rendered
+        self.client.update_page_markdown(parent_page_id, operation="insert_content", content=insertion)
 
     def _load_markdown_file(self, path_value: str | None) -> str:
         if not path_value:
@@ -1639,6 +1696,7 @@ class BridgeService:
         updated: list[str] = []
         for doc in self._docs_in_parent_order(self._merged_docs(spec, merge_defaults=merge_defaults)):
             parent_data_source_id = state.docs_data_source_id
+            self._emit_progress(f"Syncing doc `{doc.title}`.")
 
             page = self._safe_retrieve_page(state.docs_pages.get(doc.title, ""))
             if page:
@@ -1653,19 +1711,26 @@ class BridgeService:
                 )
 
             managed = self._render_managed_section(doc.title, doc.content)
-            if page:
-                properties = self._doc_properties(doc, state, create=False)
-                self.client.update_page(str(page["id"]), properties=properties)
-                self._replace_managed_markdown(str(page["id"]), managed)
-                updated.append(doc.title)
-            else:
-                page = self.client.create_page(
-                    parent_data_source_id=parent_data_source_id,
-                    properties=self._doc_properties(doc, state, create=True),
-                    markdown=managed,
-                    icon_emoji="📄",
-                )
-                created.append(doc.title)
+            try:
+                if page:
+                    properties = self._doc_properties(doc, state, create=False)
+                    self.client.update_page(str(page["id"]), properties=properties)
+                    self._replace_managed_markdown(str(page["id"]), managed)
+                    updated.append(doc.title)
+                else:
+                    page = self.client.create_page(
+                        parent_data_source_id=parent_data_source_id,
+                        properties=self._doc_properties(doc, state, create=True),
+                        markdown=managed,
+                        icon_emoji="📄",
+                    )
+                    created.append(doc.title)
+            except APIError as exc:
+                repo_path = doc.repo_path or self._doc_metadata(doc, state).get("repo_path", "")
+                detail = f"Failed to sync doc `{doc.title}`"
+                if repo_path:
+                    detail += f" from `{repo_path}`"
+                raise BridgeError(f"{detail}: {exc}") from exc
             state.docs_pages[doc.title] = str(page["id"])
         return {"created": created, "updated": updated}
 
