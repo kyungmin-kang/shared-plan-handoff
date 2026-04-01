@@ -690,6 +690,35 @@ class BridgeServiceTests(unittest.TestCase):
         self.assertEqual(tasks_by_title["P1.1 Docker smoke path stabilization"]["agent_estimate_hours"], 4)
         self.assertTrue(tasks_by_title["P1.2 Environment contract cleanup"]["dependencies"])
 
+    def test_decompose_approved_plan_generates_phase_docs(self) -> None:
+        plan = Path(self.temp_dir.name) / "shipping-plan.md"
+        plan.write_text(
+            "# Shipping Plan: Contributor Share\n\n"
+            "## Goal\n"
+            "Ship a contributor-ready public repo.\n\n"
+            "## Phase 1 — Dogfood Baseline\n"
+            "- Keep the first delivery segment small and legible.\n"
+        )
+        tasks = Path(self.temp_dir.name) / "shipping-tasks.md"
+        tasks.write_text(
+            "# Shipping Tasks: Contributor Share\n\n"
+            "## Goal\n"
+            "Ship the repo.\n\n"
+            "## Phase 1 — Dogfood Baseline\n"
+            "Phase estimate: `2-3 focused days`\n\n"
+            "- `P1.1 Docker smoke path stabilization` — Explanation: make Docker the happy path; Goal: predictable startup; Tests: smoke, healthz; AI-assisted estimate: `0.5-1 day`; Parallelization: serial anchor for all other Docker work.\n"
+        )
+
+        self.coordinator.register_approved_plan("Planner App", str(plan), task_plan_path=str(tasks))
+        result = self.coordinator.decompose_approved_plan("planner-app")
+        handoff = json.loads(Path(result["handoff_path"]).read_text())
+        doc_titles = {doc["title"] for doc in handoff["docs"]}
+
+        self.assertIn("Phase 1 — Dogfood Baseline Plan", doc_titles)
+        self.assertIn("Phase 1 — Dogfood Baseline Tasks", doc_titles)
+        self.assertTrue((self.service.config.plans_dir / "planner-app" / "phase-docs" / "phase-1-dogfood-baseline-plan.md").exists())
+        self.assertTrue((self.service.config.plans_dir / "planner-app" / "phase-docs" / "phase-1-dogfood-baseline-tasks.md").exists())
+
     def test_shipping_decomposition_assigns_parallel_waves_and_links(self) -> None:
         plan = Path(self.temp_dir.name) / "shipping-plan.md"
         plan.write_text(
@@ -793,6 +822,8 @@ class BridgeServiceTests(unittest.TestCase):
         source = Path(self.temp_dir.name) / "source-plan.md"
         source.write_text("# Planner App\n\n## Phase One\n- Build execution workspace\n")
         self.coordinator.register_approved_plan("Planner App", str(source))
+        progress_messages: list[str] = []
+        self.service.progress_callback = progress_messages.append
         good_graph = TaskGraphSpec(
             project=ProjectSpec(identifier="planner-app", name="Planner App", description="Execution workspace"),
             source_plan_path=str(self.service.config.plans_dir / "planner-app" / "approved-plan.md"),
@@ -853,6 +884,8 @@ class BridgeServiceTests(unittest.TestCase):
         self.assertTrue(state.docs_database_id)
         self.assertEqual(len(built["mcp_view_specs"]), 4)
         self.assertEqual(executed["selected_task"], "build-workspace")
+        self.assertTrue(any("Syncing project workspace to Notion." in message for message in progress_messages))
+        self.assertTrue(any("Workspace sync complete." in message for message in progress_messages))
 
     def test_reconcile_from_new_plan_revision_supersedes_removed_open_tasks(self) -> None:
         first = Path(self.temp_dir.name) / "first.md"

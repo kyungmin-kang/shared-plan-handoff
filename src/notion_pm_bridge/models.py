@@ -28,6 +28,11 @@ class DocSpec:
     title: str
     content: str
     parent_title: str | None = None
+    description: str | None = None
+    repo_path: str | None = None
+    doc_type: str | None = None
+    stage: str | None = None
+    status: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -38,6 +43,11 @@ class DocSpec:
             title=str(payload.get("title", "")),
             content=str(payload.get("content", "")),
             parent_title=str(payload["parent_title"]) if payload.get("parent_title") is not None else None,
+            description=str(payload["description"]) if payload.get("description") is not None else None,
+            repo_path=str(payload["repo_path"]) if payload.get("repo_path") is not None else None,
+            doc_type=str(payload["doc_type"]) if payload.get("doc_type") is not None else None,
+            stage=str(payload["stage"]) if payload.get("stage") is not None else None,
+            status=str(payload["status"]) if payload.get("status") is not None else None,
         )
 
 

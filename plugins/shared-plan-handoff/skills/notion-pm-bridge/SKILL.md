@@ -29,10 +29,14 @@ workspace current during delivery.
 - Keep `Phase` as a roadmap grouping layer rather than a fake task card.
 - Keep `Delivery Status`, `Progress`, and `Execution Slot` aligned so humans can
   read order, parallelism, and blocker context from the main task table.
+- When a phase grows large, generate phase-scoped plan and task docs under
+  `plans/<project_slug>/phase-docs/` and sync them into the Notion docs library.
 - If the task database comes up with a generic `Default view`, rename and
   reconfigure it into `All tasks`.
 - Treat saved view creation as MCP-first polish layered on top of the REST-built
   database structure.
+- Surface progress during long Notion build/reconcile commands so successful
+  builds do not look hung.
 
 ## Workflow
 

@@ -35,6 +35,9 @@ class CodexNotionWorkflowCoordinator:
         self.config = bridge.config
         self.artifacts = RepoArtifactStore(self.config.plans_dir)
 
+    def _emit_progress(self, message: str) -> None:
+        self.bridge._emit_progress(message)
+
     def _load_state(self) -> BridgeState:
         return self.bridge._load_state()
 
@@ -1564,8 +1567,139 @@ class CodexNotionWorkflowCoordinator:
             reviewed_at=self._utc_now(),
         )
 
+    def _phase_section_map(self, markdown: str) -> dict[str, str]:
+        return {
+            title.strip(): body.strip()
+            for title, body in self._extract_h2_sections(markdown)
+            if title.strip()
+        }
+
+    def _phase_plan_notes(self, approved_plan: str, phase_title: str) -> str:
+        sections = self._phase_section_map(approved_plan)
+        if phase_title in sections:
+            return sections[phase_title]
+        phase_prefix = phase_title.split("—", 1)[0].strip()
+        for title, body in sections.items():
+            if title.strip() == phase_prefix or title.startswith(phase_prefix):
+                return body
+        return ""
+
+    def _render_phase_plan_doc(
+        self,
+        milestone: TaskSpec,
+        phase_tasks: list[TaskSpec],
+        *,
+        approved_plan: str,
+        task_section_markdown: str,
+    ) -> str:
+        plan_notes = self._phase_plan_notes(approved_plan, milestone.title)
+        lines = [
+            f"# {milestone.title} Plan",
+            "",
+            "## Why this phase exists",
+            milestone.description.strip() or "This phase captures one major delivery segment of the approved plan.",
+            "",
+            "## Schedule",
+            f"- Agent-grounded estimate: `{milestone.agent_estimate_hours or 0}` hours",
+            f"- Human estimate: `{milestone.human_estimate_hours or 0}` hours",
+            f"- Timeline: `{milestone.start_date or 'TBD'}` -> `{milestone.due_date or 'TBD'}`",
+        ]
+        if milestone.dependencies:
+            lines.append(f"- Blocked by phases: `{', '.join(milestone.dependencies)}`")
+        if plan_notes:
+            lines.extend(["", "## Approved plan notes", plan_notes.strip()])
+        if task_section_markdown.strip():
+            lines.extend(["", "## Task-sheet notes", task_section_markdown.strip()])
+        lines.extend(["", "## Phase outcomes"])
+        for task in phase_tasks:
+            lines.append(
+                f"- `{task.title}`: `{task.agent_estimate_hours or 0}` agent hrs, "
+                f"`{task.human_estimate_hours or 0}` human hrs, "
+                f"`{task.execution_slot or 'order pending'}`"
+            )
+        return "\n".join(lines).strip() + "\n"
+
+    def _render_phase_tasks_doc(self, milestone: TaskSpec, phase_tasks: list[TaskSpec]) -> str:
+        lines = [
+            f"# {milestone.title} Tasks",
+            "",
+            "## Execution order",
+        ]
+        for task in sorted(phase_tasks, key=lambda item: (item.sequence or 0, item.title)):
+            dependency_text = ", ".join(task.dependencies) if task.dependencies else "none"
+            parallel_text = ", ".join(task.parallel_with) if task.parallel_with else "none"
+            lines.extend(
+                [
+                    f"### {task.title}",
+                    f"- Implementation slot: `{task.execution_slot or 'order pending'}`",
+                    f"- Type: `{task.type}`",
+                    f"- Agent role: `{task.agent_role or 'executor'}`",
+                    f"- Dependencies: `{dependency_text}`",
+                    f"- Parallel with: `{parallel_text}`",
+                    f"- Agent estimate: `{task.agent_estimate_hours or 0}` hours",
+                    f"- Human estimate: `{task.human_estimate_hours or 0}` hours",
+                    f"- Delivery status default: `{task.completion_state or 'Not started'}`",
+                    "",
+                    task.description.strip(),
+                    "",
+                ]
+            )
+        return "\n".join(lines).strip() + "\n"
+
+    def _phase_doc_specs(
+        self,
+        project_slug: str,
+        revision_key: str,
+        approved_plan: str,
+        handoff: HandoffSpec,
+        *,
+        task_input_markdown: str | None = None,
+    ) -> list[DocSpec]:
+        task_sections = self._phase_section_map(task_input_markdown or "")
+        phase_docs: list[DocSpec] = []
+        for milestone in [task for task in handoff.tasks if task.type == "Milestone"]:
+            phase_tasks = [
+                task
+                for task in handoff.tasks
+                if task.parent_key == milestone.key and task.type != "Milestone"
+            ]
+            plan_markdown = self._render_phase_plan_doc(
+                milestone,
+                phase_tasks,
+                approved_plan=approved_plan,
+                task_section_markdown=task_sections.get(milestone.title, ""),
+            )
+            tasks_markdown = self._render_phase_tasks_doc(milestone, phase_tasks)
+            plan_path = self.artifacts.write_phase_doc(project_slug, milestone.title, "plan", plan_markdown, revision_key=revision_key)
+            tasks_path = self.artifacts.write_phase_doc(project_slug, milestone.title, "tasks", tasks_markdown, revision_key=revision_key)
+            phase_docs.extend(
+                [
+                    DocSpec(
+                        title=f"{milestone.title} Plan",
+                        content=plan_markdown.strip(),
+                        description="Phase-level planning copy for this workstream.",
+                        repo_path=plan_path,
+                        doc_type="Phase Plan",
+                        stage="Approved Plan",
+                        status="Active",
+                    ),
+                    DocSpec(
+                        title=f"{milestone.title} Tasks",
+                        content=tasks_markdown.strip(),
+                        description="Phase-level task sheet for this workstream.",
+                        repo_path=tasks_path,
+                        doc_type="Phase Tasks",
+                        stage="Execution",
+                        status="Active",
+                    ),
+                ]
+            )
+        return phase_docs
+
     def _handoff_docs(
         self,
+        project_slug: str,
+        revision_key: str,
         project: ProjectSpec,
         approved_plan: str,
         handoff: HandoffSpec,
@@ -1643,6 +1777,15 @@ class CodexNotionWorkflowCoordinator:
         ]
         if task_input_markdown and task_input_markdown.strip():
             docs.insert(1, DocSpec(title="Shipping Tasks", content=task_input_markdown.strip()))
+        docs.extend(
+            self._phase_doc_specs(
+                project_slug,
+                revision_key,
+                approved_plan,
+                handoff,
+                task_input_markdown=task_input_markdown,
+            )
+        )
         return docs
 
     def _project_from_artifacts(self, project_slug: str, approved_plan: str, explicit_name: str | None = None) -> ProjectSpec:
@@ -1734,17 +1877,25 @@ class CodexNotionWorkflowCoordinator:
             review_status="pending",
             created_at=self._utc_now(),
             summary=graph.summary,
-            docs=self._handoff_docs(project, approved_plan, HandoffSpec(
-                handoff_id=handoff_id,
-                project=project,
-                source_plan_path=approved_plan_path,
-                task_graph_path=graph_path,
-                review_path=review_path,
-                review_status="pending",
-                created_at=self._utc_now(),
-                summary=graph.summary,
-                tasks=graph.tasks,
-            ), task_input_path=task_input_path, task_input_markdown=task_input_markdown),
+            docs=self._handoff_docs(
+                project_slug,
+                revision_key,
+                project,
+                approved_plan,
+                HandoffSpec(
+                    handoff_id=handoff_id,
+                    project=project,
+                    source_plan_path=approved_plan_path,
+                    task_graph_path=graph_path,
+                    review_path=review_path,
+                    review_status="pending",
+                    created_at=self._utc_now(),
+                    summary=graph.summary,
+                    tasks=graph.tasks,
+                ),
+                task_input_path=task_input_path,
+                task_input_markdown=task_input_markdown,
+            ),
             tasks=[
                 replace(
                     task,
@@ -1835,17 +1986,24 @@ class CodexNotionWorkflowCoordinator:
         return approved_plan_path, graph_path, review_path, handoff_path, handoff
 
     def _sync_workspace_from_handoff(self, project_ref: str, *, reconcile_removed: bool) -> dict[str, Any]:
+        self._emit_progress(f"Loading reviewed handoff for `{project_ref}`.")
         approved_plan_path, graph_path, review_path, handoff_path, handoff = self._require_handoff_ready(project_ref)
         revision_key = self._resolve_plan_revision_key(project_ref)
         _resolved_revision, _approved_plan_path, approved_plan = self.artifacts.load_approved_plan_revision(project_ref, revision_key)
         task_input_path, task_input_markdown = self.artifacts.load_optional_approved_tasks_revision(project_ref, revision_key)
-        docs = self._handoff_docs(
-            handoff.project,
-            approved_plan,
-            handoff,
-            task_input_path=task_input_path,
-            task_input_markdown=task_input_markdown,
-        )
+        self._emit_progress("Preparing docs and task payload for Notion sync.")
+        docs = handoff.docs
+        if not docs or not any(doc.doc_type == "Phase Plan" for doc in docs):
+            docs = self._handoff_docs(
+                self._resolve_project_slug(project_ref),
+                revision_key,
+                handoff.project,
+                approved_plan,
+                handoff,
+                task_input_path=task_input_path,
+                task_input_markdown=task_input_markdown,
+            )
+        self._emit_progress("Syncing project workspace to Notion.")
         sync_result = self.bridge.sync_plan_revision(
             handoff.project,
             handoff.tasks,
@@ -1864,6 +2022,7 @@ class CodexNotionWorkflowCoordinator:
         state.active_handoff_id = handoff.handoff_id
         state.active_review_status = handoff.review_status
         self._save_state(state)
+        self._emit_progress("Reviewed handoff synced successfully.")
         return {
             "project_identifier": handoff.project.identifier,
             "approved_plan_path": approved_plan_path,

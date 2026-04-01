@@ -107,7 +107,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     config = BridgeConfig.from_env()
     client = NotionClient(config.api_base_url, config.api_token, notion_version=config.notion_version)
-    service = BridgeService(client, config)
+
+    def progress(message: str) -> None:
+        print(f"[pm] {message}", file=sys.stderr, flush=True)
+
+    service = BridgeService(client, config, progress_callback=progress)
     coordinator = CodexNotionWorkflowCoordinator(service)
 
     try:

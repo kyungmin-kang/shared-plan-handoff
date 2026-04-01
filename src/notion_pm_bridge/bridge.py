@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 import re
-from typing import Any
+from typing import Any, Callable
 
 from .config import BridgeConfig
 from .exceptions import APIError, BridgeError, StateError
@@ -49,9 +49,16 @@ def _relation_property(page_ids: list[str]) -> dict[str, Any]:
 
 
 class BridgeService:
-    def __init__(self, client: NotionClient, config: BridgeConfig) -> None:
+    def __init__(
+        self,
+        client: NotionClient,
+        config: BridgeConfig,
+        *,
+        progress_callback: Callable[[str], None] | None = None,
+    ) -> None:
         self.client = client
         self.config = config
+        self.progress_callback = progress_callback
 
     def _load_state(self) -> BridgeState:
         return BridgeState.load(self.config.state_path)
@@ -61,6 +68,10 @@ class BridgeService:
 
     def _utc_now(self) -> str:
         return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+    def _emit_progress(self, message: str) -> None:
+        if self.progress_callback:
+            self.progress_callback(message)
 
     def _slugify(self, value: str) -> str:
         slug = "".join(char.lower() if char.isalnum() else "-" for char in value.strip())
@@ -520,7 +531,9 @@ class BridgeService:
                 "select": {
                     "options": [
                         {"name": "Plan", "color": "blue"},
+                        {"name": "Phase Plan", "color": "blue"},
                         {"name": "Task Sheet", "color": "orange"},
+                        {"name": "Phase Tasks", "color": "orange"},
                         {"name": "Rescue", "color": "red"},
                         {"name": "Handoff", "color": "purple"},
                         {"name": "Runbook", "color": "green"},
@@ -909,7 +922,8 @@ class BridgeService:
             "Architecture": "Implementation shape, constraints, and important technical decisions.",
         }
 
-    def _doc_metadata(self, title: str, state: BridgeState) -> dict[str, str]:
+    def _doc_metadata(self, doc: DocSpec, state: BridgeState) -> dict[str, str]:
+        title = doc.title
         metadata: dict[str, str] = {
             "doc_type": "Reference",
             "stage": "Reference",
@@ -951,12 +965,20 @@ class BridgeService:
         elif title in {"Notion MCP Prompts"}:
             metadata["doc_type"] = "Prompt"
             metadata["stage"] = "Execution"
+        if doc.doc_type:
+            metadata["doc_type"] = doc.doc_type
+        if doc.stage:
+            metadata["stage"] = doc.stage
+        if doc.status:
+            metadata["status"] = doc.status
+        if doc.repo_path:
+            metadata["repo_path"] = doc.repo_path
         return metadata
 
-    def _doc_properties(self, title: str, state: BridgeState, *, create: bool) -> dict[str, Any]:
-        metadata = self._doc_metadata(title, state)
-        properties: dict[str, Any] = {"Name": _title_property(title)}
-        description = self._doc_descriptions().get(title, "")
+    def _doc_properties(self, doc: DocSpec, state: BridgeState, *, create: bool) -> dict[str, Any]:
+        metadata = self._doc_metadata(doc, state)
+        properties: dict[str, Any] = {"Name": _title_property(doc.title)}
+        description = doc.description if doc.description is not None else self._doc_descriptions().get(doc.title, "")
         if create or description:
             properties["Description"] = _rich_text_property(description)
         if create or metadata["doc_type"]:
@@ -1632,14 +1654,14 @@ class BridgeService:
 
             managed = self._render_managed_section(doc.title, doc.content)
             if page:
-                properties = self._doc_properties(doc.title, state, create=False)
+                properties = self._doc_properties(doc, state, create=False)
                 self.client.update_page(str(page["id"]), properties=properties)
                 self._replace_managed_markdown(str(page["id"]), managed)
                 updated.append(doc.title)
             else:
                 page = self.client.create_page(
                     parent_data_source_id=parent_data_source_id,
-                    properties=self._doc_properties(doc.title, state, create=True),
+                    properties=self._doc_properties(doc, state, create=True),
                     markdown=managed,
                     icon_emoji="📄",
                 )
@@ -2020,8 +2042,10 @@ class BridgeService:
         state = self._load_state()
         state = self._reset_state_for_project_switch(state, full_spec.project.identifier)
         state.project_identifier = full_spec.project.identifier
+        self._emit_progress(f"Ensuring Notion workspace scaffolding for `{project.name}`.")
         self._ensure_workspace(full_spec, state)
         self._save_state(state)
+        self._emit_progress("Refreshing local state from Notion.")
         refresh_payload = self._refresh_from_remote(state)
         return {
             "project_identifier": full_spec.project.identifier,
@@ -2052,6 +2076,7 @@ class BridgeService:
             state = self._load_state()
         state = self._reset_state_for_project_switch(state, spec.project.identifier)
         state.project_identifier = spec.project.identifier
+        self._emit_progress(f"Ensuring project page and databases for `{spec.project.name}`.")
         self._ensure_workspace(spec, state, merge_defaults=merge_defaults)
         phase_tasks, executable_tasks = self._split_phase_tasks(spec.tasks)
         self._derive_execution_slots(phase_tasks, executable_tasks)
@@ -2062,6 +2087,7 @@ class BridgeService:
         phase_created: list[str] = []
         phase_updated: list[str] = []
 
+        self._emit_progress(f"Syncing {len(phase_tasks)} phases.")
         for phase in phase_tasks:
             existing_phase = self._resolve_existing_phase(state, phase, current_phase_pages)
             managed_markdown = self._render_task_page_markdown(phase, state)
@@ -2080,6 +2106,7 @@ class BridgeService:
             state.phase_pages_by_key[phase.key] = str(page["id"])
             state.titles_by_key[phase.key] = phase.title
 
+        self._emit_progress(f"Syncing {len(executable_tasks)} executable tasks.")
         for task in self._topological_parent_order(executable_tasks):
             existing = self._resolve_existing_task(state, task, current_pages)
             managed_markdown = self._render_task_page_markdown(task)
@@ -2098,11 +2125,13 @@ class BridgeService:
             state.task_pages_by_key[task.key] = str(page["id"])
             state.titles_by_key[task.key] = task.title
 
+        self._emit_progress("Refreshing managed task page content.")
         for task in executable_tasks:
             page_id = state.task_pages_by_key[task.key]
             self._replace_managed_markdown(page_id, self._render_task_page_markdown(task, state))
 
         phase_keys = {task.key for task in phase_tasks}
+        self._emit_progress("Linking task dependencies, phase relations, and execution metadata.")
         for task in executable_tasks:
             page_id = state.task_pages_by_key[task.key]
             parent_relations = []
@@ -2140,6 +2169,7 @@ class BridgeService:
 
         superseded: list[str] = []
         if reconcile_removed:
+            self._emit_progress("Marking removed open tasks as superseded where needed.")
             desired_keys = {task.key for task in executable_tasks}
             for task_key, page_id in list(state.task_pages_by_key.items()):
                 snapshot = state.snapshot.get(task_key)
@@ -2158,11 +2188,13 @@ class BridgeService:
                 superseded.append(task_key)
 
         self._save_state(state)
+        self._emit_progress("Refreshing local task snapshot from Notion.")
         refreshed = self._refresh_from_remote(state)
         refreshed_state = self._load_state()
         # Re-render only phase pages after refresh. Executable task pages were
         # already created with stable content, and rewriting every task again
         # adds a long post-build tail that makes successful builds feel hung.
+        self._emit_progress("Updating phase pages, project home, and dashboard.")
         for phase in phase_tasks:
             phase_page_id = refreshed_state.phase_pages_by_key.get(phase.key)
             if not phase_page_id:
@@ -2173,6 +2205,7 @@ class BridgeService:
             self._render_managed_section(spec.project.name, self._render_project_home(spec, refreshed_state)),
         )
         dashboard_payload = self.dashboard()
+        self._emit_progress("Workspace sync complete.")
         return {
             "phase_created": phase_created,
             "phase_updated": phase_updated,

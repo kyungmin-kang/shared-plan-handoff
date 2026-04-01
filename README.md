@@ -129,12 +129,18 @@ plans/<project_slug>/
   current-state.md
   detailed-scan.md
   recovery-plan.md
+  phase-docs/
+    phase-1-...-plan.md
+    phase-1-...-tasks.md
   task-graph.json
   decomposition-review.md
   handoff.json
   revisions/
     r001-approved-plan.md
     r001-approved-tasks.md
+    r001-phase-docs/
+      phase-1-...-plan.md
+      phase-1-...-tasks.md
     r001-task-graph.json
     r001-decomposition-review.md
     r001-handoff.json
@@ -149,6 +155,7 @@ Key files:
 - `current-state.md`: current rescue snapshot alias
 - `detailed-scan.md`: deeper rescue diagnosis
 - `recovery-plan.md`: rescue-plan draft before re-entering the normal handoff pipeline
+- `phase-docs/`: generated per-phase plan and task docs for long workstreams
 - `task-graph.json`: normalized milestones, tasks, dependencies, routing, and sequence
 - `decomposition-review.md`: reviewer findings plus pass/changes-required status
 - `handoff.json`: machine-readable payload used to build or reconcile Notion
@@ -231,6 +238,7 @@ The `pm` CLI remains a fallback/admin interface:
 ```
 
 Use it when you want a direct debug surface, not as the primary everyday workflow.
+Long-running Notion build and reconcile commands now emit progress messages on stderr so a successful sync does not feel hung.
 
 Run the repo-first handoff steps serially, not in parallel:
 
@@ -257,6 +265,7 @@ This means:
 - REST stays available for webhook work, debugging, and headless automation
 - A REST/CLI build creates the project page plus `Tasks`, `Phases`, and `Docs` databases, but saved Notion views still need an MCP or manual follow-up pass
 - When a workspace comes up with a generic `Default view`, rename and reconfigure it into `All tasks` instead of keeping both
+- Long phases can carry their own generated `Phase ... Plan` and `Phase ... Tasks` docs in the docs library, backed by repo copies under `plans/<project_slug>/phase-docs/`
 
 ## Rescue And Replans
 

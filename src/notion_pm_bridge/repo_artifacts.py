@@ -15,6 +15,7 @@ HANDOFF_FILENAME = "handoff.json"
 CURRENT_STATE_FILENAME = "current-state.md"
 RECOVERY_PLAN_FILENAME = "recovery-plan.md"
 DETAILED_SCAN_FILENAME = "detailed-scan.md"
+PHASE_DOCS_DIRNAME = "phase-docs"
 
 REVIEW_JSON_START = "<!-- pm-bridge-review-json:start -->"
 REVIEW_JSON_END = "<!-- pm-bridge-review-json:end -->"
@@ -74,10 +75,17 @@ class RepoArtifactStore:
     def detailed_scan_path(self, project_ref: str) -> Path:
         return self.project_dir(project_ref) / DETAILED_SCAN_FILENAME
 
+    def phase_docs_dir(self, project_ref: str) -> Path:
+        return self.project_dir(project_ref) / PHASE_DOCS_DIRNAME
+
+    def revision_phase_docs_dir(self, project_ref: str, revision_key: str) -> Path:
+        return self.revisions_dir(project_ref) / f"{revision_key}-{PHASE_DOCS_DIRNAME}"
+
     def ensure_project_dir(self, project_ref: str) -> Path:
         directory = self.project_dir(project_ref)
         directory.mkdir(parents=True, exist_ok=True)
         self.revisions_dir(project_ref).mkdir(parents=True, exist_ok=True)
+        self.phase_docs_dir(project_ref).mkdir(parents=True, exist_ok=True)
         return directory
 
     def latest_revision_number(self, project_ref: str) -> int:
@@ -310,3 +318,23 @@ class RepoArtifactStore:
         if not path.exists():
             raise StateError(f"Detailed rescue scan is missing: {self._relative(path)}")
         return self._relative(path), path.read_text().strip()
+
+    def write_phase_doc(
+        self,
+        project_ref: str,
+        phase_title: str,
+        kind: str,
+        markdown: str,
+        *,
+        revision_key: str | None = None,
+    ) -> str:
+        self.ensure_project_dir(project_ref)
+        slug = self.project_slug(phase_title)
+        filename = f"{slug}-{kind}.md"
+        path = self.phase_docs_dir(project_ref) / filename
+        path.write_text(markdown.strip() + "\n")
+        if revision_key:
+            versioned_dir = self.revision_phase_docs_dir(project_ref, revision_key)
+            versioned_dir.mkdir(parents=True, exist_ok=True)
+            (versioned_dir / filename).write_text(markdown.strip() + "\n")
+        return self._relative(path)
