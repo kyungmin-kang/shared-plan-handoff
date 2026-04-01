@@ -24,7 +24,7 @@
       "priority": "High",
       "execution_mode": "agent",
       "parallelizable": true,
-      "repo_ref": "ProjectManagerVisualization"
+      "repo_ref": "Shared Plan Handoff"
     },
     {
       "key": "view-setup",
@@ -38,7 +38,7 @@
       ],
       "execution_mode": "agent",
       "parallelizable": true,
-      "repo_ref": "ProjectManagerVisualization"
+      "repo_ref": "Shared Plan Handoff"
     },
     {
       "key": "dashboard",
@@ -52,7 +52,7 @@
       ],
       "execution_mode": "agent",
       "parallelizable": true,
-      "repo_ref": "ProjectManagerVisualization"
+      "repo_ref": "Shared Plan Handoff"
     }
   ]
 }

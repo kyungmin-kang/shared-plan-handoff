@@ -1,8 +1,8 @@
-# Shipping Tasks: ProjectManagerVisualization Public Repo and Local Codex Plugin
+# Shipping Tasks: Shared Plan Handoff Public Repo and Local Codex Plugin
 
 ## Goal
 
-Ship `ProjectManagerVisualization` as a public GitHub repository plus a working local Codex plugin path, and prove the workflow by building a fresh Notion project for this repo and using it as the active PM surface.
+Ship `Shared Plan Handoff` as a public GitHub repository plus a working local Codex plugin path, and prove the workflow by building a fresh Notion project for this repo and using it as the active PM surface.
 
 ## Scope
 
@@ -21,7 +21,7 @@ The most serial gates are the approved-doc handoff, the first fresh Notion build
 Phase estimate: `0.5-1.5 focused days`
 
 - `P1.1 Approve shipping plan and task sheet` — Explanation: create and lock the repo-facing shipping docs that describe what this bridge is shipping now; Goal: one approved source of truth for the release; Tests: human review of `docs/shipping_plan.md` and `docs/shipping_tasks.md`; AI-assisted estimate: `0.25-0.5 day`; Parallelization: serial anchor for all later shipping work.
-- `P1.2 Register handoff artifacts` — Explanation: register the approved plan and companion task sheet into `plans/projectmanagervisualization/` so the bridge uses its own repo-first artifact pipeline; Goal: prove the handoff path on the bridge itself; Tests: `register-plan`, `decompose`, and generated artifact sanity check; AI-assisted estimate: `0.25 day`; Parallelization: starts after `P1.1`.
+- `P1.2 Register handoff artifacts` — Explanation: register the approved plan and companion task sheet into `plans/shared-plan-handoff/` so the bridge uses its own repo-first artifact pipeline; Goal: prove the handoff path on the bridge itself; Tests: `register-plan`, `decompose`, and generated artifact sanity check; AI-assisted estimate: `0.25 day`; Parallelization: starts after `P1.1`.
 - `P1.3 Reviewer gate pass` — Explanation: generate and pass the decomposition review before any fresh Notion workspace is created; Goal: validate the reviewer step is a real release gate; Tests: reviewer report status is `pass`; AI-assisted estimate: `0.25 day`; Parallelization: serial with `P1.2`.
 
 ## Phase 2 — Public Repo Baseline
@@ -45,7 +45,7 @@ Phase estimate: `1-2 focused days`
 
 Phase estimate: `1-2 focused days`
 
-- `P4.1 Fresh project workspace build` — Explanation: create a brand-new Notion project for `ProjectManagerVisualization` from the reviewed handoff; Goal: prove the bridge can build a clean workspace from zero; Tests: project page, tasks, phases, and docs exist in Notion; AI-assisted estimate: `0.25-0.5 day`; Parallelization: serial after `P1.3`.
+- `P4.1 Fresh project workspace build` — Explanation: create a brand-new Notion project for `Shared Plan Handoff` from the reviewed handoff; Goal: prove the bridge can build a clean workspace from zero; Tests: project page, tasks, phases, and docs exist in Notion; AI-assisted estimate: `0.25-0.5 day`; Parallelization: serial after `P1.3`.
 - `P4.2 Human-readable PM surface pass` — Explanation: polish the new project page, tasks view, and docs surface so a human PM can understand the project without opening the repo; Goal: the Notion workspace stands on its own as the execution surface; Tests: manual scan of project page, `All tasks`, phases, and docs; AI-assisted estimate: `0.5-0.75 day`; Parallelization: starts after `P4.1`.
 - `P4.3 Start execution from Notion` — Explanation: use the fresh Notion workspace to identify and execute the next real shipping tasks for this repo; Goal: validate that the PM system is good enough to drive its own shipping work; Tests: at least one task claimed, started, and updated through the workspace; AI-assisted estimate: `0.5 day`; Parallelization: starts after `P4.2`.
 

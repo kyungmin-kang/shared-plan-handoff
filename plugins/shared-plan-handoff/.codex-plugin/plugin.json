@@ -1,26 +1,27 @@
 {
-  "name": "project-manager-visualization",
+  "name": "shared-plan-handoff",
   "version": "0.1.0",
-  "description": "Repo-first Notion PM workflow that turns approved Markdown plans into Codex-managed execution workspaces.",
+  "description": "Repo-first handoff workflow that turns approved plans into reviewed Notion execution workspaces for humans and agents.",
   "author": {
     "name": "OpenAI Codex",
     "email": "support@openai.com",
     "url": "https://openai.com/"
   },
-  "homepage": "https://github.com/kyungmin-kang/ProjectManagerVisualization",
-  "repository": "https://github.com/kyungmin-kang/ProjectManagerVisualization",
+  "homepage": "https://github.com/kyungmin-kang/shared-plan-handoff",
+  "repository": "https://github.com/kyungmin-kang/shared-plan-handoff",
   "license": "MIT",
   "keywords": [
     "codex",
     "notion",
-    "project-management",
+    "handoff",
     "planning",
-    "workflow-automation"
+    "workflow-automation",
+    "ai-agents"
   ],
   "skills": "./skills/",
   "interface": {
-    "displayName": "ProjectManagerVisualization",
-    "shortDescription": "Repo-first planning and Notion execution for Codex-managed projects",
+    "displayName": "Shared Plan Handoff",
+    "shortDescription": "Turn approved repo plans into reviewed Notion execution workspaces that humans and agents can share.",
     "longDescription": "Use approved repo plans, task-graph review gates, rescue scans, and a Notion execution workspace to keep humans and agents aligned without relying on hidden shell steps.",
     "developerName": "OpenAI Codex",
     "category": "Productivity",
@@ -29,7 +30,7 @@
       "Read",
       "Write"
     ],
-    "websiteURL": "https://github.com/kyungmin-kang/ProjectManagerVisualization",
+    "websiteURL": "https://github.com/kyungmin-kang/shared-plan-handoff",
     "privacyPolicyURL": "https://openai.com/policies/privacy-policy/",
     "termsOfServiceURL": "https://openai.com/policies/terms-of-use/",
     "defaultPrompt": [
@@ -38,8 +39,8 @@
       "Execute the next ready task and keep the Notion PM surface current."
     ],
     "brandColor": "#2F5D50",
-    "composerIcon": "./assets/project-manager-visualization-small.svg",
-    "logo": "./assets/project-manager-visualization.svg",
+    "composerIcon": "./assets/shared-plan-handoff-small.svg",
+    "logo": "./assets/shared-plan-handoff.svg",
     "screenshots": []
   }
 }

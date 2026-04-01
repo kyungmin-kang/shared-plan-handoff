@@ -1,14 +1,14 @@
 {
-  "name": "projectmanagervisualization-local",
+  "name": "shared-plan-handoff-local",
   "interface": {
-    "displayName": "ProjectManagerVisualization Local"
+    "displayName": "Shared Plan Handoff Local"
   },
   "plugins": [
     {
-      "name": "project-manager-visualization",
+      "name": "shared-plan-handoff",
       "source": {
         "source": "local",
-        "path": "./plugins/project-manager-visualization"
+        "path": "./plugins/shared-plan-handoff"
       },
       "policy": {
         "installation": "AVAILABLE",

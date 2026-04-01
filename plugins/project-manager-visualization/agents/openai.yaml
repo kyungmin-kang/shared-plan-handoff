@@ -1,6 +1,0 @@
-interface:
-  display_name: "ProjectManagerVisualization"
-  short_description: "Use repo-first plans, review-gated handoffs, rescue scans, and Notion execution workspaces."
-  icon_small: "./assets/project-manager-visualization-small.svg"
-  icon_large: "./assets/project-manager-visualization.svg"
-  default_prompt: "Use ProjectManagerVisualization to turn approved repo plans into reviewed handoffs and human-readable Notion execution workspaces."

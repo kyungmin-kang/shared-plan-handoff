@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping improve `ProjectManagerVisualization`.
+Thanks for helping improve `Shared Plan Handoff`.
 
 This repo ships the `notion-pm-bridge` package and its repo-first planning workflow. The intended operating model is:
 

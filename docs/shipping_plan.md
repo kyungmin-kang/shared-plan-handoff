@@ -1,8 +1,8 @@
-# Shipping Plan: ProjectManagerVisualization Public Repo and Local Codex Plugin
+# Shipping Plan: Shared Plan Handoff Public Repo and Local Codex Plugin
 
 ## Goal
 
-Ship `ProjectManagerVisualization` as:
+Ship `Shared Plan Handoff` as:
 
 - a public GitHub repository that another developer can understand, run, and contribute to
 - a local Codex plugin workflow that proves the repo-first plan-to-Notion execution loop works in practice
@@ -58,7 +58,7 @@ Goal:
 Exit criteria:
 
 - `docs/shipping_plan.md` and `docs/shipping_tasks.md` are approved and current
-- the plan is registered into `plans/projectmanagervisualization/`
+- the plan is registered into `plans/shared-plan-handoff/`
 - decomposition and reviewer artifacts pass cleanly
 
 ## Milestone 2: Public Repo Baseline
@@ -145,7 +145,7 @@ Do not introduce a large new abstraction layer unless it directly simplifies the
 - output files are:
   - `docs/shipping_plan.md`
   - `docs/shipping_tasks.md`
-- the public repo can preserve the package identity `notion-pm-bridge` while the project/workspace title remains `ProjectManagerVisualization`
+- the public repo can preserve the package identity `notion-pm-bridge` while the project/workspace title remains `Shared Plan Handoff`
 - local plugin support is a release goal, but marketplace publication is not
 - Notion remains the downstream execution system of record, not the planning source
 - the first shipping cycle should optimize for clarity, reproducibility, and dogfooding value over feature expansion

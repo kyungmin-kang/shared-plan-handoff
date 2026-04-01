@@ -1,0 +1,6 @@
+interface:
+  display_name: "Shared Plan Handoff"
+  short_description: "Use repo-first plans, review-gated handoffs, rescue scans, and Notion execution workspaces."
+  icon_small: "./assets/shared-plan-handoff-small.svg"
+  icon_large: "./assets/shared-plan-handoff.svg"
+  default_prompt: "Use Shared Plan Handoff to turn approved repo plans into reviewed handoffs and human-readable Notion execution workspaces."

@@ -5,14 +5,14 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "notion-pm-bridge"
 version = "0.1.0"
-description = "Repo-first planning bridge that turns approved Markdown plans into a human-readable Notion execution workspace."
+description = "Repo-first handoff bridge that turns approved plans into reviewed Notion execution workspaces for humans and agents."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { file = "LICENSE" }
 authors = [
   { name = "OpenAI Codex" }
 ]
-keywords = ["codex", "notion", "project-management", "planning", "workflow-automation"]
+keywords = ["codex", "notion", "handoff", "planning", "workflow-automation", "ai-agents"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
@@ -23,6 +23,11 @@ classifiers = [
   "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/kyungmin-kang/shared-plan-handoff"
+Repository = "https://github.com/kyungmin-kang/shared-plan-handoff"
+Issues = "https://github.com/kyungmin-kang/shared-plan-handoff/issues"
 
 [project.scripts]
 pm = "notion_pm_bridge.cli:main"

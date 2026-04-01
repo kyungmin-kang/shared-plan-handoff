@@ -1,4 +1,4 @@
-# ProjectManagerVisualization Plugin
+# Shared Plan Handoff Plugin
 
 This plugin packages the repo-first planning workflow from this repository as a
 local Codex plugin.
@@ -21,7 +21,7 @@ It is intentionally local-first:
 
 Repo-local plugin files live here:
 
-- `plugins/project-manager-visualization/`
+- `plugins/shared-plan-handoff/`
 - `.agents/plugins/marketplace.json`
 
 That means a clone of this repo can expose the plugin without copying the skill

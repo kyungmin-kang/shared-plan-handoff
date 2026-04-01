@@ -1,7 +1,7 @@
 # QA Report
 
 This report captures the final verification pass for the
-`ProjectManagerVisualization` Phase 5 release-confidence sweep.
+`Shared Plan Handoff` Phase 5 release-confidence sweep.
 
 ## Scope
 
@@ -20,7 +20,7 @@ after the public-repo, plugin, and Notion dogfood changes landed.
 ### Product-level sanity
 
 - Verified the repo includes the local Codex plugin scaffold under
-  `plugins/project-manager-visualization/`.
+  `plugins/shared-plan-handoff/`.
 - Verified the repo-local marketplace entry still points at the plugin bundle.
 - Verified Phase 5 release-confidence docs exist in `docs/`.
 - Verified the bridge now derives `Phase Group` options from the current task

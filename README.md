@@ -1,6 +1,8 @@
-# ProjectManagerVisualization
+# Shared Plan Handoff
 
-`ProjectManagerVisualization` is a repo-first planning system that turns approved Markdown plans into a human-readable Notion execution workspace.
+`Shared Plan Handoff` is a repo-first planning system that turns approved Markdown plans into a human-readable Notion execution workspace.
+
+The public project name is `Shared Plan Handoff`. The internal Python package remains `notion-pm-bridge` for compatibility with the existing CLI and imports.
 
 ## Status
 
@@ -171,7 +173,7 @@ the repo-local plugin scaffold.
 
 This repo now also ships a repo-local Codex plugin at:
 
-- `plugins/project-manager-visualization`
+- `plugins/shared-plan-handoff`
 - `.agents/plugins/marketplace.json`
 
 Installation and usage notes live in:

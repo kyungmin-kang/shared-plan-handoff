@@ -1,7 +1,7 @@
 # Decomposition Review
 
-- Source plan: `plans/projectmanagervisualization/revisions/r001-approved-plan.md`
-- Task graph: `plans/projectmanagervisualization/revisions/r001-task-graph.json`
+- Source plan: `plans/shared-plan-handoff/revisions/r001-approved-plan.md`
+- Task graph: `plans/shared-plan-handoff/revisions/r001-task-graph.json`
 - Review status: `pass`
 - Reviewed at: `2026-04-01T19:23:14+00:00`
 - Reviewer: `reviewer-agent`
@@ -23,7 +23,7 @@
   "review_status": "pass",
   "reviewed_at": "2026-04-01T19:23:14+00:00",
   "reviewer": "reviewer-agent",
-  "source_plan_path": "plans/projectmanagervisualization/revisions/r001-approved-plan.md",
-  "task_graph_path": "plans/projectmanagervisualization/revisions/r001-task-graph.json"
+  "source_plan_path": "plans/shared-plan-handoff/revisions/r001-approved-plan.md",
+  "task_graph_path": "plans/shared-plan-handoff/revisions/r001-task-graph.json"
 }
 <!-- pm-bridge-review-json:end -->

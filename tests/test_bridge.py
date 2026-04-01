@@ -1105,7 +1105,7 @@ class PluginScaffoldTests(unittest.TestCase):
         self.repo_root = Path(__file__).resolve().parents[1]
 
     def test_local_plugin_manifest_and_marketplace_exist(self) -> None:
-        plugin_root = self.repo_root / "plugins" / "project-manager-visualization"
+        plugin_root = self.repo_root / "plugins" / "shared-plan-handoff"
         manifest_path = plugin_root / ".codex-plugin" / "plugin.json"
         marketplace_path = self.repo_root / ".agents" / "plugins" / "marketplace.json"
 
@@ -1116,16 +1116,16 @@ class PluginScaffoldTests(unittest.TestCase):
         manifest = json.loads(manifest_path.read_text())
         marketplace = json.loads(marketplace_path.read_text())
 
-        self.assertEqual(manifest["name"], "project-manager-visualization")
+        self.assertEqual(manifest["name"], "shared-plan-handoff")
         self.assertEqual(manifest["skills"], "./skills/")
         self.assertEqual(manifest["license"], "MIT")
-        self.assertEqual(manifest["interface"]["displayName"], "ProjectManagerVisualization")
+        self.assertEqual(manifest["interface"]["displayName"], "Shared Plan Handoff")
 
         plugin_names = [entry["name"] for entry in marketplace["plugins"]]
-        self.assertIn("project-manager-visualization", plugin_names)
+        self.assertIn("shared-plan-handoff", plugin_names)
 
     def test_local_plugin_skills_and_docs_are_present(self) -> None:
-        plugin_root = self.repo_root / "plugins" / "project-manager-visualization"
+        plugin_root = self.repo_root / "plugins" / "shared-plan-handoff"
         skill_paths = [
             plugin_root / "skills" / "notion-pm-bridge" / "SKILL.md",
             plugin_root / "skills" / "pm-plan-translator" / "SKILL.md",
@@ -1136,7 +1136,7 @@ class PluginScaffoldTests(unittest.TestCase):
 
         self.assertTrue((plugin_root / "README.md").exists())
         self.assertTrue((plugin_root / "agents" / "openai.yaml").exists())
-        self.assertTrue((plugin_root / "assets" / "project-manager-visualization.svg").exists())
+        self.assertTrue((plugin_root / "assets" / "shared-plan-handoff.svg").exists())
         self.assertTrue((self.repo_root / "docs" / "local_codex_plugin.md").exists())
 
     def test_release_confidence_docs_exist(self) -> None:
@@ -1166,7 +1166,7 @@ class PublicationHygieneTests(unittest.TestCase):
 
     def test_public_repo_only_keeps_intended_plan_history(self) -> None:
         plan_dirs = sorted(path.name for path in (self.repo_root / "plans").iterdir() if path.is_dir())
-        self.assertEqual(plan_dirs, ["projectmanagervisualization"])
+        self.assertEqual(plan_dirs, ["shared-plan-handoff"])
 
 
 class DynamicPhaseGroupSchemaTests(unittest.TestCase):

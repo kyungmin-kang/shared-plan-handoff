@@ -1,7 +1,7 @@
 # Dogfood Retrospective And Next-Cut Backlog
 
 This note captures what worked, what still felt rough, and what should land
-after the first public share of `ProjectManagerVisualization`.
+after the first public share of `Shared Plan Handoff`.
 
 ## What Worked
 
@@ -11,7 +11,7 @@ after the first public share of `ProjectManagerVisualization`.
   Understanding` from `Bring-It-Home Workstreams`.
 - MCP-first Notion mutation was a much better default than relying on the stale
   REST token path for normal interactive use.
-- The live `ProjectManagerVisualization` Notion workspace is now good enough to
+- The live `Shared Plan Handoff` Notion workspace is now good enough to
   drive real work without constantly reopening the repo.
 - The product successfully dogfooded itself through planning, workspace build,
   execution, and plugin packaging.
