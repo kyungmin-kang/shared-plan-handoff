@@ -1,0 +1,45 @@
+{
+  "name": "project-manager-visualization",
+  "version": "0.1.0",
+  "description": "Repo-first Notion PM workflow that turns approved Markdown plans into Codex-managed execution workspaces.",
+  "author": {
+    "name": "OpenAI Codex",
+    "email": "support@openai.com",
+    "url": "https://openai.com/"
+  },
+  "homepage": "https://github.com/kyungmin-kang/ProjectManagerVisualization",
+  "repository": "https://github.com/kyungmin-kang/ProjectManagerVisualization",
+  "license": "MIT",
+  "keywords": [
+    "codex",
+    "notion",
+    "project-management",
+    "planning",
+    "workflow-automation"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "ProjectManagerVisualization",
+    "shortDescription": "Repo-first planning and Notion execution for Codex-managed projects",
+    "longDescription": "Use approved repo plans, task-graph review gates, rescue scans, and a Notion execution workspace to keep humans and agents aligned without relying on hidden shell steps.",
+    "developerName": "OpenAI Codex",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/kyungmin-kang/ProjectManagerVisualization",
+    "privacyPolicyURL": "https://openai.com/policies/privacy-policy/",
+    "termsOfServiceURL": "https://openai.com/policies/terms-of-use/",
+    "defaultPrompt": [
+      "Register an approved repo plan, review the handoff, and build the Notion workspace.",
+      "Rescue a messy project, make the true goal explicit, and publish shared context.",
+      "Execute the next ready task and keep the Notion PM surface current."
+    ],
+    "brandColor": "#2F5D50",
+    "composerIcon": "./assets/project-manager-visualization-small.svg",
+    "logo": "./assets/project-manager-visualization.svg",
+    "screenshots": []
+  }
+}

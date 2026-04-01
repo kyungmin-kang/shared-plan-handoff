@@ -1,0 +1,20 @@
+{
+  "name": "projectmanagervisualization-local",
+  "interface": {
+    "displayName": "ProjectManagerVisualization Local"
+  },
+  "plugins": [
+    {
+      "name": "project-manager-visualization",
+      "source": {
+        "source": "local",
+        "path": "./plugins/project-manager-visualization"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180" role="img" aria-label="ProjectManagerVisualization logo">
+  <rect width="320" height="180" rx="28" fill="#F7F4EC"/>
+  <rect x="18" y="18" width="284" height="144" rx="20" fill="#2F5D50"/>
+  <rect x="40" y="42" width="74" height="96" rx="12" fill="#F7F4EC"/>
+  <rect x="132" y="42" width="146" height="24" rx="10" fill="#BFD9CF"/>
+  <rect x="132" y="78" width="112" height="24" rx="10" fill="#E7C36D"/>
+  <rect x="132" y="114" width="132" height="18" rx="9" fill="#F7F4EC"/>
+  <circle cx="259" cy="90" r="12" fill="#D06B4A"/>
+</svg>

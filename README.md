@@ -150,7 +150,22 @@ This repo includes local Codex skills under [`.codex/skills`](/Users/kmkang/Docu
 - [pm-plan-translator](/Users/kmkang/Documents/ProjectManagerVisualization/.codex/skills/pm-plan-translator/SKILL.md)
 - [pm-rescue](/Users/kmkang/Documents/ProjectManagerVisualization/.codex/skills/pm-rescue/SKILL.md)
 
-These are part of the intended local Codex workflow and will later be complemented by the plugin scaffold.
+These are part of the intended local Codex workflow and are now complemented by
+the repo-local plugin scaffold.
+
+## Local Plugin
+
+This repo now also ships a repo-local Codex plugin at:
+
+- [`plugins/project-manager-visualization`](/Users/kmkang/Documents/ProjectManagerVisualization/plugins/project-manager-visualization)
+- [`.agents/plugins/marketplace.json`](/Users/kmkang/Documents/ProjectManagerVisualization/.agents/plugins/marketplace.json)
+
+Installation and usage notes live in:
+
+- [`docs/local_codex_plugin.md`](/Users/kmkang/Documents/ProjectManagerVisualization/docs/local_codex_plugin.md)
+
+The plugin is meant to reinforce the same repo-first workflow as the local
+skills, not replace it with a second planning model.
 
 ## Coordinator API
 

@@ -418,6 +418,7 @@ class BridgeServiceTests(unittest.TestCase):
         self.assertEqual(finished_page["properties"]["Delivery Status"]["select"]["name"], "Completed")
         self.assertEqual(finished_page["properties"]["Progress"]["number"], 100)
 
+
     def test_dashboard_writes_markdown_artifact_and_updates_page(self) -> None:
         self.service.sync_plan(self.spec)
         result = self.service.dashboard()
@@ -1097,6 +1098,46 @@ class BridgeServiceTests(unittest.TestCase):
         self.assertIsNotNone(tasks["Stabilize execution-state surface"]["agent_estimate_hours"])
         self.assertTrue(tasks["Stabilize execution-state surface"]["start_date"])
         self.assertTrue(tasks["Stabilize execution-state surface"]["due_date"])
+
+
+class PluginScaffoldTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.repo_root = Path(__file__).resolve().parents[1]
+
+    def test_local_plugin_manifest_and_marketplace_exist(self) -> None:
+        plugin_root = self.repo_root / "plugins" / "project-manager-visualization"
+        manifest_path = plugin_root / ".codex-plugin" / "plugin.json"
+        marketplace_path = self.repo_root / ".agents" / "plugins" / "marketplace.json"
+
+        self.assertTrue(plugin_root.exists())
+        self.assertTrue(manifest_path.exists())
+        self.assertTrue(marketplace_path.exists())
+
+        manifest = json.loads(manifest_path.read_text())
+        marketplace = json.loads(marketplace_path.read_text())
+
+        self.assertEqual(manifest["name"], "project-manager-visualization")
+        self.assertEqual(manifest["skills"], "./skills/")
+        self.assertEqual(manifest["license"], "MIT")
+        self.assertEqual(manifest["interface"]["displayName"], "ProjectManagerVisualization")
+
+        plugin_names = [entry["name"] for entry in marketplace["plugins"]]
+        self.assertIn("project-manager-visualization", plugin_names)
+
+    def test_local_plugin_skills_and_docs_are_present(self) -> None:
+        plugin_root = self.repo_root / "plugins" / "project-manager-visualization"
+        skill_paths = [
+            plugin_root / "skills" / "notion-pm-bridge" / "SKILL.md",
+            plugin_root / "skills" / "pm-plan-translator" / "SKILL.md",
+            plugin_root / "skills" / "pm-rescue" / "SKILL.md",
+        ]
+        for path in skill_paths:
+            self.assertTrue(path.exists(), msg=f"Missing plugin skill: {path}")
+
+        self.assertTrue((plugin_root / "README.md").exists())
+        self.assertTrue((plugin_root / "agents" / "openai.yaml").exists())
+        self.assertTrue((plugin_root / "assets" / "project-manager-visualization.svg").exists())
+        self.assertTrue((self.repo_root / "docs" / "local_codex_plugin.md").exists())
 
 
 class NotionClientTests(unittest.TestCase):
