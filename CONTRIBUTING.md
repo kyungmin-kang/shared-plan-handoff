@@ -22,7 +22,15 @@ This repo ships the `notion-pm-bridge` package and its repo-first planning workf
 source .venv/bin/activate
 ```
 
+The bootstrap script requires Python 3.11+ and will auto-select a compatible interpreter when possible. To force a specific interpreter:
+
+```bash
+SHARED_PLAN_HANDOFF_PYTHON=/path/to/python3.11 ./scripts/bootstrap_venv.sh
+```
+
 If you want REST fallback locally, copy `.env.example` to `.env` and fill in the Notion settings. For normal chat-first work with a connected Notion MCP app, the REST token is optional.
+
+The CLI reads `.env` directly, so contributors should not need to `source .env` in the shell.
 
 ## Core Workflow
 

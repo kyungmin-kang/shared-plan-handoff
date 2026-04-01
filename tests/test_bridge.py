@@ -353,6 +353,32 @@ class BridgeServiceTests(unittest.TestCase):
             config = BridgeConfig.from_env()
         self.assertEqual(config.parent_page_id, "33478c4e-a06e-8016-9f72-d1dfc8b108fc")
 
+    def test_config_reads_dotenv_without_shell_sourcing(self) -> None:
+        env_file = Path(self.temp_dir.name) / ".env"
+        env_file.write_text(
+            "\n".join(
+                [
+                    "NOTION_API_TOKEN='token-with-$-chars'",
+                    'NOTION_PARENT_PAGE_ID="33478c4ea06e80169f72d1dfc8b108fc"',
+                    "PM_BRIDGE_STATUS_MAP=ready:Ready,in_progress:In Progress",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        with patch.dict(
+            os.environ,
+            {
+                "PM_BRIDGE_ENV_FILE": str(env_file),
+            },
+            clear=True,
+        ):
+            config = BridgeConfig.from_env()
+
+        self.assertEqual(config.api_token, "token-with-$-chars")
+        self.assertEqual(config.parent_page_id, "33478c4e-a06e-8016-9f72-d1dfc8b108fc")
+        self.assertEqual(config.status_map["ready"], "Ready")
+
     def test_sync_plan_is_idempotent(self) -> None:
         first = self.service.sync_plan(self.spec)
         second = self.service.sync_plan(self.spec)
@@ -1167,6 +1193,24 @@ class PublicationHygieneTests(unittest.TestCase):
     def test_public_repo_only_keeps_intended_plan_history(self) -> None:
         plan_dirs = sorted(path.name for path in (self.repo_root / "plans").iterdir() if path.is_dir())
         self.assertEqual(plan_dirs, ["shared-plan-handoff"])
+
+
+class BootstrapRegressionTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.repo_root = Path(__file__).resolve().parents[1]
+
+    def test_setup_py_carries_fallback_metadata_and_console_script(self) -> None:
+        setup_text = (self.repo_root / "setup.py").read_text(encoding="utf-8")
+        self.assertIn('name="notion-pm-bridge"', setup_text)
+        self.assertIn("console_scripts", setup_text)
+        self.assertIn("pm=notion_pm_bridge.cli:main", setup_text)
+
+    def test_bootstrap_prefers_python_311_plus_and_validates_pm_entrypoint(self) -> None:
+        script = (self.repo_root / "scripts" / "bootstrap_venv.sh").read_text(encoding="utf-8")
+        self.assertIn("python3.11", script)
+        self.assertIn("SHARED_PLAN_HANDOFF_PYTHON", script)
+        self.assertIn("pip install -e .", script)
+        self.assertIn('[[ ! -x ./.venv/bin/pm ]]', script)
 
 
 class DynamicPhaseGroupSchemaTests(unittest.TestCase):

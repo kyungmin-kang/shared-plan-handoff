@@ -79,13 +79,21 @@ The resulting workspace is meant to be understandable without opening the repo.
 1. Connect the Notion app/plugin in Codex so Notion MCP works in-session.
 2. Create a parent Notion page where Codex should create project workspaces.
 3. Copy `.env.example` to `.env`.
-4. Install the repo-local environment:
+4. Install the repo-local environment with Python 3.11+:
 
 ```bash
 ./scripts/bootstrap_venv.sh
 ```
 
+If your machine has multiple Python versions, the bootstrap script will pick a compatible interpreter automatically. You can also force one explicitly:
+
+```bash
+SHARED_PLAN_HANDOFF_PYTHON=/path/to/python3.11 ./scripts/bootstrap_venv.sh
+```
+
 If you want REST fallback, also create a Notion internal integration and share the parent page with it. For normal chat-first use with a working Notion MCP connection, the REST token is optional.
+
+The CLI and coordinator will read `.env` directly. You do not need to `source .env`, which is safer when secrets contain shell-special characters.
 
 Recommended `.env` shape:
 
@@ -230,6 +238,7 @@ Use it when you want a direct debug surface, not as the primary everyday workflo
 - Fallback: REST with `NOTION_API_TOKEN`
 - Recommended interactive path: use Codex chat plus the connected Notion app/plugin
 - Recommended non-interactive path: use the CLI with the REST token
+- The CLI auto-loads `.env` (or `PM_BRIDGE_ENV_FILE`) without requiring shell sourcing
 
 This means:
 
