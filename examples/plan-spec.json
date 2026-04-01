@@ -1,0 +1,58 @@
+{
+  "project": {
+    "identifier": "agent-pm",
+    "name": "Agent PM",
+    "description": "Legacy debug/admin example for the fallback CLI path. Normal use should prefer approved markdown plans and repo-first handoff artifacts."
+  },
+  "docs": [
+    {
+      "title": "Home",
+      "content": "# Agent PM\n\nThis example exists to exercise the fallback CLI/debug path.\n\n## Notes\n\n- Normal use should keep the approved plan in the repo\n- Decomposition and review should happen before Notion mutation\n- Codex Apps Notion MCP is the preferred interactive Notion path\n"
+    },
+    {
+      "title": "Architecture",
+      "content": "# Architecture\n\n- The repo is the planning source of truth\n- `pm` is the fallback debug/admin CLI\n- Notion is the downstream execution surface\n- Notion MCP is the preferred interactive mutation path\n"
+    }
+  ],
+  "tasks": [
+    {
+      "key": "foundation",
+      "title": "Bootstrap Notion bridge foundation",
+      "description": "Set up the local bridge, Notion project structure, and shared task database.",
+      "type": "Task",
+      "status": "Ready",
+      "priority": "High",
+      "execution_mode": "agent",
+      "parallelizable": true,
+      "repo_ref": "ProjectManagerVisualization"
+    },
+    {
+      "key": "view-setup",
+      "title": "Publish Notion view setup guide",
+      "description": "Create the one-time board, timeline, and filtered table setup instructions.",
+      "type": "Task",
+      "status": "Ready",
+      "priority": "Normal",
+      "dependencies": [
+        "foundation"
+      ],
+      "execution_mode": "agent",
+      "parallelizable": true,
+      "repo_ref": "ProjectManagerVisualization"
+    },
+    {
+      "key": "dashboard",
+      "title": "Generate dashboard snapshot",
+      "description": "Publish a bridge-side dashboard artifact and sync it into Notion.",
+      "type": "Task",
+      "status": "Ready",
+      "priority": "Normal",
+      "dependencies": [
+        "foundation"
+      ],
+      "execution_mode": "agent",
+      "parallelizable": true,
+      "repo_ref": "ProjectManagerVisualization"
+    }
+  ]
+}
