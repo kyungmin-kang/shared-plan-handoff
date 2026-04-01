@@ -2,7 +2,7 @@
 
 The files in this directory are small debug/admin examples, not the main recommended planning format.
 
-Use [plan-spec.json](/Users/kmkang/Documents/ProjectManagerVisualization/examples/plan-spec.json) when you want to:
+Use `plan-spec.json` when you want to:
 
 - inspect the older direct-plan JSON shape
 - exercise the fallback `pm` CLI manually

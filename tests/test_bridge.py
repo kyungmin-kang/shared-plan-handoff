@@ -553,7 +553,7 @@ class BridgeServiceTests(unittest.TestCase):
         self.assertIn("Shipping Tasks", Path(result["approved_tasks_path"]).read_text())
 
     def test_register_approved_plan_clears_foreign_workspace_and_rescue_state(self) -> None:
-        stale_page = self.client.create_page(parent_page_id="workspace-root", title="Data Workbench", markdown="# Old project")
+        stale_page = self.client.create_page(parent_page_id="workspace-root", title="Example Workspace", markdown="# Old project")
         stale = self.service._load_state()
         stale.project_identifier = "notion-pm-bridge"
         stale.project_page_id = stale_page["id"]
@@ -599,7 +599,7 @@ class BridgeServiceTests(unittest.TestCase):
         (foreign_dir / "current-state.md").write_text(
             "# Current State Snapshot\n\n"
             "## Project Goal\n"
-            "Ship Data Workbench instead.\n\n"
+            "Ship the example workspace instead.\n\n"
             "## What Completion Requires\n"
             "- Wrong project content.\n"
         )
@@ -615,7 +615,7 @@ class BridgeServiceTests(unittest.TestCase):
         )
 
         self.assertIn("Ship the bridge.", rendered)
-        self.assertNotIn("Ship Data Workbench instead.", rendered)
+        self.assertNotIn("Ship the example workspace instead.", rendered)
         self.assertNotIn("plans/data-workbench/current-state.md", rendered)
 
     def test_decompose_approved_plan_writes_graph_and_handoff_without_notion_mutation(self) -> None:
@@ -1143,6 +1143,30 @@ class PluginScaffoldTests(unittest.TestCase):
         self.assertTrue((self.repo_root / "docs" / "release_readiness.md").exists())
         self.assertTrue((self.repo_root / "docs" / "dogfood_retrospective.md").exists())
         self.assertTrue((self.repo_root / "docs" / "qa_report.md").exists())
+
+
+class PublicationHygieneTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.repo_root = Path(__file__).resolve().parents[1]
+
+    def test_env_example_is_public_and_not_suppressed_by_gitignore(self) -> None:
+        self.assertTrue((self.repo_root / ".env.example").exists())
+        gitignore = (self.repo_root / ".gitignore").read_text(encoding="utf-8")
+        self.assertIn("!.env.example", gitignore)
+
+    def test_public_facing_docs_do_not_embed_local_absolute_paths(self) -> None:
+        files = [
+            self.repo_root / "README.md",
+            self.repo_root / "examples" / "README.md",
+            self.repo_root / ".codex" / "skills" / "notion-pm-bridge" / "SKILL.md",
+            self.repo_root / "docs" / "local_codex_plugin.md",
+        ]
+        for path in files:
+            self.assertNotIn("/Users/", path.read_text(encoding="utf-8"), msg=f"Local path leaked in {path}")
+
+    def test_public_repo_only_keeps_intended_plan_history(self) -> None:
+        plan_dirs = sorted(path.name for path in (self.repo_root / "plans").iterdir() if path.is_dir())
+        self.assertEqual(plan_dirs, ["projectmanagervisualization"])
 
 
 class DynamicPhaseGroupSchemaTests(unittest.TestCase):

@@ -2,6 +2,10 @@
 
 Repo-tracked project handoff artifacts live here.
 
+For the public repo, keep only sanitized or intentionally public artifacts
+under `plans/`. Private dogfood or client-specific rescue artifacts should stay
+local and out of version control.
+
 Each project should use:
 
 ```text

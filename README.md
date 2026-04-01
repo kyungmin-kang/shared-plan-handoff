@@ -2,6 +2,20 @@
 
 `ProjectManagerVisualization` is a repo-first planning system that turns approved Markdown plans into a human-readable Notion execution workspace.
 
+## Status
+
+This project is still a work in progress.
+
+- Expect the workflow, docs, and plugin packaging to keep evolving.
+- The repo is already usable for real dogfooding, but it is still alpha.
+- Connector limits in Notion mean some inline workspace polish still requires a human step.
+
+## Collaboration Notes
+
+- Issues and pull requests are welcome.
+- Please prefer small, reviewable changes that preserve the repo-first handoff model.
+- If you notice a failure that looks systemic rather than incidental, treat it as a product bug and fix the underlying assumption rather than papering over the symptom.
+
 It ships the `notion-pm-bridge` package plus local Codex skills for:
 
 - turning an approved plan into a normalized task graph
@@ -62,7 +76,7 @@ The resulting workspace is meant to be understandable without opening the repo.
 
 1. Connect the Notion app/plugin in Codex so Notion MCP works in-session.
 2. Create a parent Notion page where Codex should create project workspaces.
-3. Copy [`.env.example`](/Users/kmkang/Documents/ProjectManagerVisualization/.env.example) to `.env`.
+3. Copy `.env.example` to `.env`.
 4. Install the repo-local environment:
 
 ```bash
@@ -76,8 +90,8 @@ Recommended `.env` shape:
 ```bash
 NOTION_TRANSPORT=mcp
 NOTION_REST_FALLBACK=1
-NOTION_API_TOKEN=secret_...
-NOTION_PARENT_PAGE_ID=33478c4e-a06e-8016-9f72-d1dfc8b108fc
+NOTION_API_TOKEN=your_notion_integration_token_if_using_rest_fallback
+NOTION_PARENT_PAGE_ID=your-parent-page-id
 NOTION_PROJECT_IDENTIFIER=agent-pm
 PM_BRIDGE_PLANS_DIR=plans
 ```
@@ -132,7 +146,7 @@ Key files:
 
 ## Example
 
-The example payload in [examples/plan-spec.json](/Users/kmkang/Documents/ProjectManagerVisualization/examples/plan-spec.json) is a small debug/admin sample for the fallback CLI path.
+The example payload in `examples/plan-spec.json` is a small debug/admin sample for the fallback CLI path.
 
 It is useful when you want to:
 
@@ -144,11 +158,11 @@ For normal use, prefer approved markdown plans plus the repo-first artifact flow
 
 ## Local Skills
 
-This repo includes local Codex skills under [`.codex/skills`](/Users/kmkang/Documents/ProjectManagerVisualization/.codex/skills):
+This repo includes local Codex skills under `.codex/skills`:
 
-- [notion-pm-bridge](/Users/kmkang/Documents/ProjectManagerVisualization/.codex/skills/notion-pm-bridge/SKILL.md)
-- [pm-plan-translator](/Users/kmkang/Documents/ProjectManagerVisualization/.codex/skills/pm-plan-translator/SKILL.md)
-- [pm-rescue](/Users/kmkang/Documents/ProjectManagerVisualization/.codex/skills/pm-rescue/SKILL.md)
+- `notion-pm-bridge`
+- `pm-plan-translator`
+- `pm-rescue`
 
 These are part of the intended local Codex workflow and are now complemented by
 the repo-local plugin scaffold.
@@ -157,12 +171,12 @@ the repo-local plugin scaffold.
 
 This repo now also ships a repo-local Codex plugin at:
 
-- [`plugins/project-manager-visualization`](/Users/kmkang/Documents/ProjectManagerVisualization/plugins/project-manager-visualization)
-- [`.agents/plugins/marketplace.json`](/Users/kmkang/Documents/ProjectManagerVisualization/.agents/plugins/marketplace.json)
+- `plugins/project-manager-visualization`
+- `.agents/plugins/marketplace.json`
 
 Installation and usage notes live in:
 
-- [`docs/local_codex_plugin.md`](/Users/kmkang/Documents/ProjectManagerVisualization/docs/local_codex_plugin.md)
+- `docs/local_codex_plugin.md`
 
 The plugin is meant to reinforce the same repo-first workflow as the local
 skills, not replace it with a second planning model.
@@ -171,13 +185,13 @@ skills, not replace it with a second planning model.
 
 Phase 5 artifacts for this release live in:
 
-- [`docs/release_readiness.md`](/Users/kmkang/Documents/ProjectManagerVisualization/docs/release_readiness.md)
-- [`docs/dogfood_retrospective.md`](/Users/kmkang/Documents/ProjectManagerVisualization/docs/dogfood_retrospective.md)
-- [`docs/qa_report.md`](/Users/kmkang/Documents/ProjectManagerVisualization/docs/qa_report.md)
+- `docs/release_readiness.md`
+- `docs/dogfood_retrospective.md`
+- `docs/qa_report.md`
 
 ## Coordinator API
 
-The main orchestration surface is [`CodexNotionWorkflowCoordinator`](/Users/kmkang/Documents/ProjectManagerVisualization/src/notion_pm_bridge/coordinator.py).
+The main orchestration surface is `CodexNotionWorkflowCoordinator` in `src/notion_pm_bridge/coordinator.py`.
 
 Primary repo-first methods:
 
@@ -247,9 +261,9 @@ python3 -m compileall src tests
 ./scripts/bootstrap_venv.sh
 ```
 
-## Status
+## Dogfood Status
 
-This project is currently alpha, but it is already dogfooding its own workflow:
+This repo is already dogfooding its own workflow:
 
 - shipping docs are repo-first
 - reviewed handoffs can build fresh Notion workspaces

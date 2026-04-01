@@ -15,10 +15,10 @@ Use this skill when the task should move an approved repo plan into the Notion e
 - Treat `plans/<project_slug>/revisions/` as the permanent plan and handoff history.
 - Do not mutate Notion until the approved plan has been decomposed, reviewed, and explicitly built.
 - Rescue docs may be published to Notion before handoff, but only as shared context pages under the project. Do not create the execution database early.
-- Prefer the coordinator in [`src/notion_pm_bridge/coordinator.py`](/Users/kmkang/Documents/ProjectManagerVisualization/src/notion_pm_bridge/coordinator.py) for the repo-first handoff flow.
+- Prefer the coordinator in `src/notion_pm_bridge/coordinator.py` for the repo-first handoff flow.
 - Prefer Codex Apps Notion MCP as the default Notion mutation path.
 - Use REST only as a fallback when MCP is unavailable or when you need debug/headless behavior.
-- Use the lower-level bridge in [`src/notion_pm_bridge/bridge.py`](/Users/kmkang/Documents/ProjectManagerVisualization/src/notion_pm_bridge/bridge.py) for deterministic task sync, readiness calculation, reconciliation, and repo-state logic.
+- Use the lower-level bridge in `src/notion_pm_bridge/bridge.py` for deterministic task sync, readiness calculation, reconciliation, and repo-state logic.
 - Treat the project home page as the human-first PM start surface after the workspace exists.
 - Keep a short notes-style inline-view setup note on the workspace root page so humans know how to add linked `Phases`, `Tasks`, and `Docs` views manually.
 - Keep `Phase` as a real roadmap/grouping layer rather than a fake task card.
@@ -57,7 +57,7 @@ Use this skill when the task should move an approved repo plan into the Notion e
 
 ## References
 
-- Repo-first coordinator workflow: [`src/notion_pm_bridge/coordinator.py`](/Users/kmkang/Documents/ProjectManagerVisualization/src/notion_pm_bridge/coordinator.py)
-- Notion sync logic: [`src/notion_pm_bridge/bridge.py`](/Users/kmkang/Documents/ProjectManagerVisualization/src/notion_pm_bridge/bridge.py)
-- Repo artifact store: [`src/notion_pm_bridge/repo_artifacts.py`](/Users/kmkang/Documents/ProjectManagerVisualization/src/notion_pm_bridge/repo_artifacts.py)
-- Repo layout and runtime model: [`README.md`](/Users/kmkang/Documents/ProjectManagerVisualization/README.md)
+- Repo-first coordinator workflow: `src/notion_pm_bridge/coordinator.py`
+- Notion sync logic: `src/notion_pm_bridge/bridge.py`
+- Repo artifact store: `src/notion_pm_bridge/repo_artifacts.py`
+- Repo layout and runtime model: `README.md`
