@@ -29,6 +29,10 @@ workspace current during delivery.
 - Keep `Phase` as a roadmap grouping layer rather than a fake task card.
 - Keep `Delivery Status`, `Progress`, and `Execution Slot` aligned so humans can
   read order, parallelism, and blocker context from the main task table.
+- If the task database comes up with a generic `Default view`, rename and
+  reconfigure it into `All tasks`.
+- Treat saved view creation as MCP-first polish layered on top of the REST-built
+  database structure.
 
 ## Workflow
 

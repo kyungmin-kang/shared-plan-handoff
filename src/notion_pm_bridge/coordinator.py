@@ -330,15 +330,40 @@ class CodexNotionWorkflowCoordinator:
 
     def _revision_view_specs(self) -> list[dict[str, Any]]:
         return [
-            {"type": "table", "name": "All tasks"},
+            {
+                "database": "tasks",
+                "type": "table",
+                "name": "All tasks",
+                "configure": 'GROUP BY "Phase Group"; SORT BY "Sequence" ASC; SHOW "Name", "Execution Slot", "Delivery Status", "Type", "Agent Role", "Parallelizable", "Parent", "Sequence", "Blocked By"',
+            },
         ]
 
     def _handoff_view_specs(self) -> list[dict[str, Any]]:
         return [
-            {"type": "timeline", "name": "Timeline", "date_start": "Timeline", "date_end": "Timeline", "database": "phases"},
-            {"type": "table", "name": "All phases", "database": "phases"},
-            {"type": "table", "name": "By Priority", "database": "phases"},
-            {"type": "table", "name": "All tasks"},
+            {
+                "database": "phases",
+                "type": "timeline",
+                "name": "Timeline",
+                "configure": 'TIMELINE BY "Start" TO "Due"; SHOW "Name", "Priority", "Agent Estimate (hrs)", "Human Estimate (hrs)", "Blocked By", "Tasks"',
+            },
+            {
+                "database": "phases",
+                "type": "table",
+                "name": "All phases",
+                "configure": 'SHOW "Name", "Priority", "Agent Estimate (hrs)", "Human Estimate (hrs)", "Progress", "Status", "Tasks", "Blocked By", "Timeline"',
+            },
+            {
+                "database": "phases",
+                "type": "table",
+                "name": "By Priority",
+                "configure": 'SORT BY "Priority" ASC; SHOW "Name", "Priority", "Agent Estimate (hrs)", "Human Estimate (hrs)", "Progress", "Status", "Tasks", "Blocked By", "Timeline"',
+            },
+            {
+                "database": "tasks",
+                "type": "table",
+                "name": "All tasks",
+                "configure": 'GROUP BY "Phase Group"; SORT BY "Sequence" ASC; SHOW "Name", "Execution Slot", "Delivery Status", "Type", "Agent Role", "Parallelizable", "Parent", "Sequence", "Blocked By"',
+            },
         ]
 
     def _resolve_project_slug(self, project_ref: str | None = None) -> str:

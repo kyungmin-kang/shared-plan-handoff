@@ -24,6 +24,8 @@ Use this skill when the task should move an approved repo plan into the Notion e
 - Keep `Phase` as a real roadmap/grouping layer rather than a fake task card.
 - Keep `Delivery Status` and `Progress` aligned, and compute an `Execution Slot` field so humans can see order, parallelism, and blocker context from one column.
 - Keep a searchable docs library database in Notion so approved plans, rescue docs, task sheets, prompts, dashboards, and runbooks are readable without opening the repo.
+- If a task database comes up with a generic `Default view`, rename and reconfigure that view into `All tasks` rather than leaving the generic view behind.
+- Treat saved view creation as MCP-first polish layered on top of the REST-built database structure.
 
 ## Workflow
 

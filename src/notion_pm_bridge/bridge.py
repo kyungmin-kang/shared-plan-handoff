@@ -1524,9 +1524,10 @@ class BridgeService:
         docs_name = self._docs_database_title(project)
         return (
             f"Use Notion MCP in the `{project.name}` workspace and configure the `{tasks_name}` database with these views:\n\n"
-            "1. `All tasks` as a table grouped by `Phase Group`, sorted by `Sequence` ascending.\n"
-            "2. Show columns in this order: `Name`, `Execution Slot`, `Delivery Status`, `Type`, `Agent Role`, `Parallelizable`, `Parent`, `Sequence`, `Blocked By`.\n"
-            "3. Keep the `Plan Revision` filter pinned to the active handoff only.\n\n"
+            "1. If a generic `Default view` already exists, rename and reconfigure it into `All tasks` instead of leaving both behind.\n"
+            "2. `All tasks` should be a table grouped by `Phase Group`, sorted by `Sequence` ascending.\n"
+            "3. Show columns in this order: `Name`, `Execution Slot`, `Delivery Status`, `Type`, `Agent Role`, `Parallelizable`, `Parent`, `Sequence`, `Blocked By`.\n"
+            "4. Keep the `Plan Revision` filter pinned to the active handoff only.\n\n"
             f"Also configure the `{phases_name}` database with views `Timeline`, `All phases`, and `By Priority`. Use phases as top-level workstream rows rather than executable tasks.\n\n"
             f"Also configure the `{docs_name}` database with views `All Docs`, `Planning`, `Execution`, and `Rescue`, showing `Name`, `Description`, `Doc Type`, `Stage`, `Repo Path`, `Source Revision`, and `Doc Status`.\n\n"
             "Then refresh the project home page so it works as the PM start page: it should clearly explain the project goal, finish line, maintenance baseline, and the fast path into `Tasks`, `Phases`, and `Docs`.\n"
@@ -2159,11 +2160,9 @@ class BridgeService:
         self._save_state(state)
         refreshed = self._refresh_from_remote(state)
         refreshed_state = self._load_state()
-        for task in executable_tasks:
-            page_id = refreshed_state.task_pages_by_key.get(task.key)
-            if not page_id:
-                continue
-            self._replace_managed_markdown(page_id, self._render_task_page_markdown(task, refreshed_state))
+        # Re-render only phase pages after refresh. Executable task pages were
+        # already created with stable content, and rewriting every task again
+        # adds a long post-build tail that makes successful builds feel hung.
         for phase in phase_tasks:
             phase_page_id = refreshed_state.phase_pages_by_key.get(phase.key)
             if not phase_page_id:

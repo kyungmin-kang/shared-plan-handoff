@@ -255,6 +255,8 @@ This means:
 - `register-plan`, `decompose`, and `review-decomposition` remain useful without touching Notion
 - page/database/view mutation in everyday use should happen through Codex Apps Notion MCP first
 - REST stays available for webhook work, debugging, and headless automation
+- A REST/CLI build creates the project page plus `Tasks`, `Phases`, and `Docs` databases, but saved Notion views still need an MCP or manual follow-up pass
+- When a workspace comes up with a generic `Default view`, rename and reconfigure it into `All tasks` instead of keeping both
 
 ## Rescue And Replans
 
