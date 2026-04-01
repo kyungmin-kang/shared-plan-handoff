@@ -896,6 +896,8 @@ class BridgeServiceTests(unittest.TestCase):
         self.assertEqual(len(built["mcp_view_specs"]), 4)
         self.assertEqual(executed["selected_task"], "build-workspace")
         self.assertTrue(any("Syncing project workspace to Notion." in message for message in progress_messages))
+        self.assertTrue(any("Refreshing managed task page content (2/2): Build execution workspace" in message for message in progress_messages))
+        self.assertTrue(any("Linking task dependencies, phase relations, and execution metadata (2/2): Build execution workspace" in message for message in progress_messages))
         self.assertTrue(any("Workspace sync complete." in message for message in progress_messages))
 
     def test_reconcile_from_new_plan_revision_supersedes_removed_open_tasks(self) -> None:
@@ -1093,7 +1095,7 @@ class BridgeServiceTests(unittest.TestCase):
         self.assertIn("Inline View Setup", markdown)
         self.assertNotIn("Team Project", markdown)
 
-    def test_new_project_is_indexed_under_projects_not_shared_templates(self) -> None:
+    def test_new_project_root_page_uses_single_projects_section(self) -> None:
         root = self.client.create_page(
             parent_page_id="workspace-root-parent",
             title="Reasoned NYC",
@@ -1111,10 +1113,11 @@ class BridgeServiceTests(unittest.TestCase):
         self.service.sync_plan(self.spec)
 
         root_markdown = self.client.retrieve_page_markdown(root["id"])["markdown"]
-        shared_templates_section = root_markdown.split("## Shared Templates", 1)[1]
-
-        self.assertIn("[Agent PM](", root_markdown)
-        self.assertNotIn("[Agent PM](", shared_templates_section)
+        self.assertEqual(root_markdown.count("## Projects"), 1)
+        self.assertNotIn("## Shared Templates", root_markdown)
+        self.assertNotIn("[Data Workbench](", root_markdown)
+        self.assertNotIn("[Agent PM](", root_markdown)
+        self.assertIn("Active project workspaces appear below as child pages.", root_markdown)
         self.assertFalse(any(call["erase_content"] for call in self.client.update_calls if call["page_id"] == root["id"]))
 
     def test_parent_index_update_preserves_unmanaged_parent_page_content(self) -> None:
@@ -1136,9 +1139,10 @@ class BridgeServiceTests(unittest.TestCase):
 
         root_markdown = self.client.retrieve_page_markdown(root["id"])["markdown"]
         self.assertIn("Welcome to the workspace.", root_markdown)
-        self.assertIn("## Shared Templates", root_markdown)
         self.assertIn("## Notes", root_markdown)
-        self.assertIn("[Agent PM](", root_markdown)
+        self.assertIn("## Projects", root_markdown)
+        self.assertNotIn("## Shared Templates", root_markdown)
+        self.assertNotIn("[Agent PM](", root_markdown)
 
     def test_milestones_sync_into_phase_database_not_task_database(self) -> None:
         phase_spec = PlanSpec(

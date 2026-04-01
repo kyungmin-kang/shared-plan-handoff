@@ -14,8 +14,6 @@ MANAGED_START = "<!-- pm-bridge-managed:start -->"
 MANAGED_END = "<!-- pm-bridge-managed:end -->"
 ESCAPED_MANAGED_START = r"\<!-- pm-bridge-managed:start --\>"
 ESCAPED_MANAGED_END = r"\<!-- pm-bridge-managed:end --\>"
-PARENT_INDEX_START = "<!-- pm-bridge-parent-index:start -->"
-PARENT_INDEX_END = "<!-- pm-bridge-parent-index:end -->"
 
 
 def _title_property(value: str) -> dict[str, Any]:
@@ -803,47 +801,27 @@ class BridgeService:
             blocks.append(block)
         return "\n\n".join(blocks).strip()
 
-    def _project_index_line(self, project: ProjectSpec, state: BridgeState) -> str:
-        project_url = state.project_page_url or f"https://www.notion.so/{state.project_page_id}"
-        return f"- [{project.name}]({project_url})"
-
-    def _line_matches_project_link(self, line: str, project: ProjectSpec, state: BridgeState) -> bool:
-        stripped = line.strip()
-        if not stripped:
-            return False
-        escaped_name = re.escape(project.name)
-        if re.search(rf"\[{escaped_name}\]\(", stripped):
-            return True
-        if state.project_page_url and state.project_page_url in stripped:
-            return True
-        if state.project_page_id and state.project_page_id in stripped:
-            return True
-        return False
-
-    def _render_parent_projects_section(self, project_lines: list[str]) -> str:
-        lines = [PARENT_INDEX_START, "## Projects"]
-        if project_lines:
-            lines.append("")
-            lines.extend(project_lines)
-        lines.extend(["", PARENT_INDEX_END])
-        return "\n".join(lines).strip()
-
-    def _extract_parent_index_lines(self, markdown: str) -> list[str]:
-        pattern = re.compile(
-            rf"{re.escape(PARENT_INDEX_START)}\s*(.*?)\s*{re.escape(PARENT_INDEX_END)}",
-            re.DOTALL,
-        )
-        match = pattern.search(markdown)
-        if not match:
-            return []
-        lines: list[str] = []
-        for line in match.group(1).splitlines():
-            stripped = line.strip()
-            if stripped.startswith("## "):
+    def _render_parent_projects_section(self, *, existing_body: str = "") -> str:
+        kept_lines: list[str] = []
+        for raw_line in existing_body.splitlines():
+            stripped = raw_line.strip()
+            if not stripped:
                 continue
             if stripped.startswith("- ["):
-                lines.append(stripped)
-        return lines
+                continue
+            if "Add reusable workspace templates" in stripped:
+                continue
+            kept_lines.append(raw_line.rstrip())
+
+        body_lines = ["Active project workspaces appear below as child pages."]
+        body_lines.extend(kept_lines)
+        return "## Projects\n" + "\n".join(body_lines)
+
+    def _section_block(self, title: str, body: str) -> str:
+        block = f"## {title.strip()}"
+        if body.strip():
+            block += f"\n{body.strip()}"
+        return block
 
     def _ensure_parent_projects_index(self, project: ProjectSpec, state: BridgeState) -> None:
         parent_page_id = self._require_parent_page_id()
@@ -851,65 +829,59 @@ class BridgeService:
         if not parent_page:
             return
         current = self.client.retrieve_page_markdown(parent_page_id).get("markdown", "")
-        link_line = self._project_index_line(project, state)
-        outside_lines: list[str] = []
-        in_managed = False
-        for raw_line in current.splitlines():
-            stripped = raw_line.strip()
-            if stripped == PARENT_INDEX_START:
-                in_managed = True
-                continue
-            if stripped == PARENT_INDEX_END:
-                in_managed = False
-                continue
-            if in_managed:
-                continue
-            if self._line_matches_project_link(raw_line, project, state):
-                outside_lines.append(raw_line)
-        for line in outside_lines:
-            self.client.update_page_markdown(
-                parent_page_id,
-                operation="replace_content_range",
-                content="",
-                content_range=f"{line}...{line}",
-            )
-        if outside_lines:
-            current = self.client.retrieve_page_markdown(parent_page_id).get("markdown", "")
-
-        preamble, sections = self._split_h2_sections(current)
+        _preamble, sections = self._split_h2_sections(current)
+        projects_section: tuple[str, str] | None = None
+        shared_templates_section: tuple[str, str] | None = None
         for title, body in sections:
-            if title.strip().lower() != "projects":
-                continue
-            body_lines = [line for line in body.splitlines() if line.strip()]
-            body_lines = [line for line in body_lines if not self._line_matches_project_link(line, project, state)]
-            body_lines.append(link_line)
-            old_section = f"## {title.strip()}"
-            if body.strip():
-                old_section += f"\n{body.strip()}"
-            new_section = f"## {title.strip()}\n" + "\n".join(body_lines)
+            normalized = title.strip().lower()
+            if normalized == "projects" and projects_section is None:
+                projects_section = (title, body)
+            elif normalized == "shared templates" and shared_templates_section is None:
+                shared_templates_section = (title, body)
+
+        existing_projects_body = "\n".join(
+            part
+            for part in [
+                projects_section[1].strip() if projects_section else "",
+                shared_templates_section[1].strip() if shared_templates_section else "",
+            ]
+            if part.strip()
+        )
+        rendered_projects = self._render_parent_projects_section(existing_body=existing_projects_body)
+
+        if shared_templates_section is not None:
+            old_shared = self._section_block(*shared_templates_section)
+            if old_shared in current and old_shared != rendered_projects:
+                self.client.update_page_markdown(
+                    parent_page_id,
+                    operation="replace_content_range",
+                    content=rendered_projects,
+                    content_range=f"{old_shared}...{old_shared}",
+                )
+                current = self.client.retrieve_page_markdown(parent_page_id).get("markdown", "")
+            projects_section = None if projects_section == shared_templates_section else projects_section
+
+        if projects_section is not None:
+            old_projects = self._section_block(*projects_section)
+            replacement = ""
+            if shared_templates_section is None:
+                replacement = rendered_projects
+            if old_projects in current and old_projects != replacement:
+                self.client.update_page_markdown(
+                    parent_page_id,
+                    operation="replace_content_range",
+                    content=replacement,
+                    content_range=f"{old_projects}...{old_projects}",
+                )
+                current = self.client.retrieve_page_markdown(parent_page_id).get("markdown", "")
+
+        if projects_section is None and shared_templates_section is None and "## Projects" not in current:
+            content = ("\n\n" if current.strip() else "") + rendered_projects
             self.client.update_page_markdown(
                 parent_page_id,
-                operation="replace_content_range",
-                content=new_section,
-                content_range=f"{old_section}...{old_section}",
+                operation="insert_content",
+                content=content,
             )
-            return
-
-        project_lines = [line for line in self._extract_parent_index_lines(current) if not self._line_matches_project_link(line, project, state)]
-        project_lines.append(link_line)
-        rendered = self._render_parent_projects_section(project_lines)
-
-        if PARENT_INDEX_START in current and PARENT_INDEX_END in current:
-            self.client.update_page_markdown(
-                parent_page_id,
-                operation="replace_content_range",
-                content=rendered,
-                content_range=f"{PARENT_INDEX_START}...{PARENT_INDEX_END}",
-            )
-            return
-
-        insertion = f"\n\n{rendered}" if current.strip() else rendered
-        self.client.update_page_markdown(parent_page_id, operation="insert_content", content=insertion)
 
     def _load_markdown_file(self, path_value: str | None) -> str:
         if not path_value:
@@ -2190,14 +2162,17 @@ class BridgeService:
             state.task_pages_by_key[task.key] = str(page["id"])
             state.titles_by_key[task.key] = task.title
 
+        total_tasks = len(executable_tasks)
         self._emit_progress("Refreshing managed task page content.")
-        for task in executable_tasks:
+        for index, task in enumerate(executable_tasks, start=1):
+            self._emit_progress(f"Refreshing managed task page content ({index}/{total_tasks}): {task.title}")
             page_id = state.task_pages_by_key[task.key]
             self._replace_managed_markdown(page_id, self._render_task_page_markdown(task, state))
 
         phase_keys = {task.key for task in phase_tasks}
         self._emit_progress("Linking task dependencies, phase relations, and execution metadata.")
-        for task in executable_tasks:
+        for index, task in enumerate(executable_tasks, start=1):
+            self._emit_progress(f"Linking task dependencies, phase relations, and execution metadata ({index}/{total_tasks}): {task.title}")
             page_id = state.task_pages_by_key[task.key]
             parent_relations = []
             if task.parent_key and task.parent_key in state.task_pages_by_key:
